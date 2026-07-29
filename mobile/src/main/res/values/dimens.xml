@@ -229,6 +229,8 @@
 
     <dimen name="dialog_title_margin_bottom">@dimen/space_S</dimen>
     <dimen name="dialog_button_margin_top">16dp</dimen>
+    <dimen name="iop_throughput_gauge_size">264dp</dimen>
+    <dimen name="iop_throughput_dialog_max_width">320dp</dimen>
     <dimen name="dialog_margin_between_buttons">12dp</dimen>
     <dimen name="dialog_button_margin_end">16dp</dimen>
     <dimen name="dialog_margin_horizontal_plus_button_margin_end">40dp</dimen>
@@ -300,7 +302,7 @@
     <dimen name="settings_version_margin">8dp</dimen>
     <dimen name="settings_subtitle_size">18sp</dimen>
     <dimen name="settings_link_button_height">90dp</dimen>
-    <dimen name="settings_link_button_width">160dp</dimen>
+    <dimen name="settings_link_button_width">162dp</dimen>
 
 
     <dimen name="rv_loaded_images_horizontal_margin">12dp</dimen>
@@ -319,6 +321,8 @@
     <!--    Matter -->
     <dimen name="matter_0dp">0dp</dimen>
     <dimen name="matter_1dp">1dp</dimen>
+    <dimen name="iop_expert_accent_default">4dp</dimen>
+    <dimen name="iop_expert_accent_milestone">8dp</dimen>
     <dimen name="matter_2dp">2dp</dimen>
     <dimen name="matter_4dp">4dp</dimen>
     <dimen name="matter_5dp">5dp</dimen>

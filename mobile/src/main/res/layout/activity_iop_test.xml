@@ -31,9 +31,41 @@
         android:background="@color/silabs_redtheme_tool_bar_color"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
 
-    <FrameLayout
-        android:id="@+id/container"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_iop_mode_tabs"
         android:layout_below="@id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="@color/silabs_white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/silabs_redtheme_select_dialog_device_list_line_color"
+        app:strokeWidth="1dp">
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_layout_iop_mode"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_margin="8dp"
+            android:background="@android:color/transparent"
+            app:tabBackground="@drawable/iop_mode_tab_background"
+            app:tabGravity="fill"
+            app:tabIndicatorColor="@android:color/transparent"
+            app:tabIndicatorHeight="0dp"
+            app:tabMode="fixed"
+            app:tabRippleColor="@android:color/transparent"
+            app:tabSelectedTextColor="@color/silabs_white"
+            app:tabTextAppearance="@style/IOPModeTabText"
+            app:tabTextColor="@color/iop_mode_tab_text" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/view_pager_iop"
+        android:layout_below="@id/card_iop_mode_tabs"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/ll_iop_footer"

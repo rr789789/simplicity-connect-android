@@ -113,11 +113,7 @@ class SiliconLabsTestInfo(var fwName: String, var deviceMacAddress: String, val 
                 }
                 // Append test case 7.5 after test case 7.4
                 if (itemTest.idTest == 8 && !printedTestCase7_5) {
-                    if (iopActivity.isCCCDPass) {
-                        append("\tTest case 7.5,Pass.\n")
-                    } else {
-                        append("\tTest case 7.5,Fail.\n")
-                    }
+                    append("\tTest case 7.5 is not applicable for Android.\n")
                     printedTestCase7_5 = true // Set the flag to true after printing test case 7.5
                 }
 

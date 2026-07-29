@@ -58,6 +58,20 @@ class SpeedView(context: Context, attributeSet: AttributeSet? = null) : View(con
 
     private val positions = floatArrayOf(0f, 0.3f, 1f)
 
+    private companion object {
+        private const val ARC_START_DEGREES = 135f
+        private const val ARC_SWEEP_DEGREES = 270f
+        /** Anchor path for scale labels (fractions of view width/height), tuned for the 9-tick layout. */
+        private val LABEL_ANCHOR_X = floatArrayOf(
+            0.22f, 0.12f, 0.13f, 0.23f, 0.50f, 0.77f, 0.87f, 0.88f, 0.78f
+        )
+        private val LABEL_ANCHOR_Y = floatArrayOf(
+            0.77f, 0.59f, 0.38f, 0.23f, 0.14f, 0.23f, 0.38f, 0.59f, 0.77f
+        )
+        private const val SEVEN_LABEL_TEXT_SIZE_FRACTION = 0.041f
+        private const val SEVEN_LABEL_PATH_SPREAD = 1.05f
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         mHeight = getDefaultSize(suggestedMinimumHeight, heightMeasureSpec).toFloat()
@@ -152,8 +166,8 @@ class SpeedView(context: Context, attributeSet: AttributeSet? = null) : View(con
     }
 
     fun setUnitsArray(array: ArrayList<String>) {
-        if (array.size != 9) {
-            throw IllegalArgumentException("You should provide array containing 9 elements")
+        if (array.size != 7 && array.size != 9) {
+            throw IllegalArgumentException("You should provide array containing 7 or 9 elements")
         }
         this.unitsArray = array
     }
@@ -162,21 +176,21 @@ class SpeedView(context: Context, attributeSet: AttributeSet? = null) : View(con
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        val startAngle = (135f + (progress / 100.0) * 270).toFloat()
-        val sweepAngle = (270 * (100.0 - progress) / 100.0).toFloat()
+        val startAngle = (ARC_START_DEGREES + (progress / 100.0) * ARC_SWEEP_DEGREES).toFloat()
+        val sweepAngle = (ARC_SWEEP_DEGREES * (100.0 - progress) / 100.0).toFloat()
         val px = (mWidth / 2.0).toFloat()
         val py = (mHeight / 2.0).toFloat()
 
         mMatrix.apply {
             reset()
             indicatorBitmap?.let { postTranslate(-(0.188 * it.width).toFloat(), -(it.height * 0.436).toFloat()) }
-            postRotate(135f + ((progress / 100.0) * 270.0).toFloat())
+            postRotate(ARC_START_DEGREES + ((progress / 100.0) * ARC_SWEEP_DEGREES).toFloat())
             postTranslate(px, py)
         }
 
         canvas.apply {
             indicatorBitmap?.let { drawBitmap(it, mMatrix, indicatorPaint) }
-            drawArc(rectangle, 135f, 270f, false, gradientPaintRing)
+            drawArc(rectangle, ARC_START_DEGREES, ARC_SWEEP_DEGREES, false, gradientPaintRing)
             drawArc(rectangle, startAngle, sweepAngle, false, greyPaintRing)
             drawUnits(this)
             drawSpeed(this)
@@ -185,8 +199,60 @@ class SpeedView(context: Context, attributeSet: AttributeSet? = null) : View(con
     }
 
     private fun drawUnits(canvas: Canvas) {
-        if (unitsArray.size > 0) {
-            canvas.apply {
+        if (unitsArray.isEmpty()) return
+        when (unitsArray.size) {
+            7 -> drawUnitsEvenlySpaced(canvas)
+            else -> drawUnitsLegacy(canvas)
+        }
+    }
+
+    /**
+     * Evenly spaces [labelCount] ticks along the full gauge arc using the legacy anchor path
+     * (start at index 0, end at index 8) so the max value sits at the lower-right arc end.
+     */
+    private fun drawUnitsEvenlySpaced(canvas: Canvas) {
+        val labelCount = unitsArray.size
+        val maxAnchorIndex = LABEL_ANCHOR_X.size - 1
+        val savedTextSize = unitPaint.textSize
+        unitPaint.textSize = mWidth * SEVEN_LABEL_TEXT_SIZE_FRACTION
+
+        unitsArray.forEachIndexed { index, label ->
+            val pathPosition = index.toFloat() / (labelCount - 1) * maxAnchorIndex
+            val segmentIndex = pathPosition.toInt().coerceIn(0, maxAnchorIndex - 1)
+            val segmentFraction = pathPosition - segmentIndex
+            val xFraction = spreadLabelFraction(
+                LABEL_ANCHOR_X[segmentIndex] +
+                    segmentFraction * (LABEL_ANCHOR_X[segmentIndex + 1] - LABEL_ANCHOR_X[segmentIndex])
+            )
+            val yFraction = spreadLabelFraction(
+                LABEL_ANCHOR_Y[segmentIndex] +
+                    segmentFraction * (LABEL_ANCHOR_Y[segmentIndex + 1] - LABEL_ANCHOR_Y[segmentIndex])
+            )
+            val x = mWidth * xFraction
+            val y = mHeight * yFraction
+
+            unitPaint.textAlign = labelTextAlignForPosition(x, y)
+            canvas.drawText(label, x, y, unitPaint)
+        }
+        unitPaint.textSize = savedTextSize
+    }
+
+    private fun spreadLabelFraction(fraction: Float): Float {
+        return 0.5f + (fraction - 0.5f) * SEVEN_LABEL_PATH_SPREAD
+    }
+
+    private fun labelTextAlignForPosition(x: Float, y: Float): Paint.Align {
+        return when {
+            y <= mHeight * 0.18f -> Paint.Align.CENTER
+            x <= mWidth * 0.28f -> Paint.Align.LEFT
+            x >= mWidth * 0.72f -> Paint.Align.RIGHT
+            x < mWidth * 0.5f -> Paint.Align.LEFT
+            else -> Paint.Align.RIGHT
+        }
+    }
+
+    private fun drawUnitsLegacy(canvas: Canvas) {
+        canvas.apply {
                 // LEFT
                 unitPaint.textAlign = Paint.Align.LEFT
                 drawText(unitsArray[0], (mWidth * 0.22).toFloat(), (mHeight * 0.77).toFloat(), unitPaint)
@@ -202,9 +268,10 @@ class SpeedView(context: Context, attributeSet: AttributeSet? = null) : View(con
                 unitPaint.textAlign = Paint.Align.RIGHT
                 drawText(unitsArray[5], (mWidth * 0.77).toFloat(), (mHeight * 0.23).toFloat(), unitPaint)
                 drawText(unitsArray[6], (mWidth * 0.87).toFloat(), (mHeight * 0.38).toFloat(), unitPaint)
-                drawText(unitsArray[7], (mWidth * 0.88).toFloat(), (mHeight * 0.59).toFloat(), unitPaint)
-                drawText(unitsArray[8], (mWidth * 0.78).toFloat(), (mHeight * 0.77).toFloat(), unitPaint)
-            }
+                if (unitsArray.size > 7) {
+                    drawText(unitsArray[7], (mWidth * 0.88).toFloat(), (mHeight * 0.59).toFloat(), unitPaint)
+                    drawText(unitsArray[8], (mWidth * 0.78).toFloat(), (mHeight * 0.77).toFloat(), unitPaint)
+                }
         }
     }
 
