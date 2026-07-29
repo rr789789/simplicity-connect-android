@@ -28,6 +28,7 @@ import com.siliconlabs.bledemo.features.demo.wifi_provisioning.adapters.APAdapte
 import com.siliconlabs.bledemo.features.demo.wifi_provisioning.fragment.WiFiInputDialogFragment
 import com.siliconlabs.bledemo.features.demo.wifi_provisioning.interfaces.WiFiProvisionInterface
 import com.siliconlabs.bledemo.features.demo.wifi_provisioning.model.ScanResult
+import com.google.gson.GsonBuilder
 import com.siliconlabs.bledemo.utils.AppUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -111,7 +112,7 @@ class WiFiProvisioningActivity : AppCompatActivity(),
             try {
                 val url = "http://$ipAddress"
                 val retro = Retrofit.Builder().baseUrl(url)
-                    .addConverterFactory(GsonConverterFactory.create()).build()
+                    .addConverterFactory(GsonConverterFactory.create(provisioningGson)).build()
                 val response =
                     retro.create(WiFiProvisionInterface::class.java).getWiFiProvisionScanner()
 
@@ -302,7 +303,7 @@ class WiFiProvisioningActivity : AppCompatActivity(),
                 // val okHttpClient = setHTTPstatus()
                 val retro = Retrofit.Builder().baseUrl(url)
                     //     .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create()).build()
+                    .addConverterFactory(GsonConverterFactory.create(provisioningGson)).build()
                 val provisionStatus = retro.create(WiFiProvisionInterface::class.java)
                 val body = mapOf(
                     AP_SSID to ssid,
@@ -390,6 +391,9 @@ class WiFiProvisioningActivity : AppCompatActivity(),
     companion object {
         private const val IP_ADDRESS = "192.168.10.10"
         private val TAG = Companion::class.java.simpleName
+
+        // Gson default escapes ' as \u0027; the dev kit HTTP server does not decode that.
+        private val provisioningGson = GsonBuilder().disableHtmlEscaping().create()
 
         private const val DIALOG_WIFI_PROV_INPUT_TAG = "WiFiProvDialogFragmentTAG"
         const val AP_SSID = "ssid"

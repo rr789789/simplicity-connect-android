@@ -572,12 +572,64 @@
     <string name="iop_test_toast_bluetooth_not_supported">Bluetooth is not supported</string>
     <string name="iop_test_n_percent">%d %%</string>
     <string name="iop_test_n_bytes" formatted="false">%d bytes</string>
+    <string name="iop_throughput_dialog_mtu_size">MTU size: %1$d bytes</string>
+    <string name="iop_throughput_dialog_buffer_size">Buffer size: %1$d bytes</string>
+    <string name="iop_throughput_dialog_peak">Peak throughput: %1$s %2$s</string>
+    <string name="iop_throughput_dialog_average">Average throughput: %1$s %2$s</string>
+    <string name="iop_throughput_dialog_threshold">Target throughput threshold: %1$s %2$s</string>
     <string name="iop_test_label_resetting">Resetting…</string>
     <string name="iop_test_label_1_of_1">1 OF 1</string>
     <string name="iop_test_note_device_name_dialog">This feature will execute a set of Bluetooth
         operations against a Silicon Labs device to test for Interoperability (IOP). For more
         information about IOP and which sample application to use please read:</string>
     <string name="iop_test_label_interoperability_test">Interoperability Test</string>
+
+    <string name="iop_tab_standard">STANDARD</string>
+    <string name="iop_tab_expert">EXPERT</string>
+    <string name="iop_gatt_table_title">GATT Table</string>
+    <string name="iop_gatt_status_connecting">Connecting to device…</string>
+    <string name="iop_gatt_status_searching">Searching for device…</string>
+    <string name="iop_gatt_status_discovering">Discovering services…</string>
+    <string name="iop_gatt_status_disconnected">Device disconnected.</string>
+    <string name="iop_gatt_status_discover_failed">Failed to discover services.</string>
+    <string name="iop_gatt_status_no_device">No device selected for the IOP test.</string>
+    <string name="iop_gatt_status_bluetooth_off">Bluetooth is turned off.</string>
+    <string name="iop_gatt_status_not_found">Couldn\'t find the device.\nMake sure it is powered on and nearby, then try again.</string>
+    <string name="iop_gatt_status_no_services">No services found on this device.</string>
+    <string name="iop_test_expert_log">Expert Step Log</string>
+    <string name="iop_expert_log_test_started">Test run started</string>
+    <string name="iop_expert_log_test_finished">Test run finished</string>
+    <string name="iop_expert_log_scanning">Test %1$s: Scanning for firmware: %2$s</string>
+    <string name="iop_expert_log_connecting">Test %1$s: Connecting to %2$s</string>
+    <string name="iop_expert_log_connected">Test %1$s: Connected to device</string>
+    <string name="iop_expert_log_disconnected">Test %1$s: Disconnected from device</string>
+    <string name="iop_expert_log_discovered_services">Test %1$s: Discovered %2$d GATT services</string>
+    <string name="iop_expert_log_reading">Test %1$s: Reading %2$s</string>
+    <string name="iop_expert_log_read_result">Test %1$s: Read %2$s = %3$s (packet size: %4$d bytes)</string>
+    <string name="iop_expert_log_writing">Test %1$s: Writing %2$s = %3$s (packet size: %4$d bytes)</string>
+    <string name="iop_expert_log_write_result">Test %1$s: Write %2$s completed (packet size: %3$d bytes)</string>
+    <string name="iop_expert_log_notification_received">Test %1$s: Notification %2$s = %3$s (packet size: %4$d bytes)</string>
+    <string name="iop_expert_log_scenario_start">Starting test %1$s: %2$s</string>
+    <string name="iop_expert_log_test_start">Starting test %1$s</string>
+    <string name="iop_expert_log_child_test_start">Starting test %1$s: %2$s</string>
+    <string name="iop_expert_log_test_pass">Test %1$s passed</string>
+    <string name="iop_expert_log_test_fail">Test %1$s failed</string>
+    <string name="iop_expert_log_test_fail_detail">%1$s — %2$s</string>
+    <string name="iop_expert_log_ota_start">Starting test %1$s: OTA update</string>
+    <string name="iop_expert_log_ota_auto_file">Test %1$s: Using bundled GBL file for OTA</string>
+    <string name="iop_expert_log_ota_pick_file">Test %1$s: Selecting GBL file for OTA</string>
+    <string name="iop_expert_log_ota_file_selected">Test %1$s: Selected OTA file: %2$s</string>
+    <string name="iop_expert_log_ota_file_cancelled">Test %1$s: OTA file selection cancelled</string>
+    <string name="iop_expert_log_ota_progress">Test %1$s: OTA progress: %2$d%%</string>
+    <string name="iop_expert_log_ota_packet_size">Test %1$s: OTA packet size %2$d bytes (%3$s)</string>
+    <string name="iop_expert_log_ota_complete">Test %1$s: OTA update completed (packet size: %2$d bytes)</string>
+    <string name="iop_expert_log_ota_packet_size_summary">OTA packet sizes — with ACK: %1$d bytes, without ACK: %2$d bytes (MTU %3$d)</string>
+    <string name="iop_expert_log_ota_failed">Test %1$s: OTA update failed</string>
+    <string name="iop_expert_log_ota_ack_mode">acknowledged write</string>
+    <string name="iop_expert_log_ota_unack_mode">unacknowledged write</string>
+    <string name="iop_expert_log_throughput">Throughput: %1$s (acceptable: %2$s)</string>
+    <string name="iop_expert_log_security">Security step: %1$s</string>
+    <string name="iop_expert_empty_state">Expert logs will appear here during a test run.\n\nTap Run Test to start.</string>
 
     <!-- GATT Configurator -->
     <string name="content_desc_gatt_server_icon">GATT server icon</string>
@@ -886,7 +938,7 @@
     <string name="soc_thunderboard_must_be_connected">A circuit board (SoC) must be
         connected and running firmware with a title containing \"Bluetooth - SoC EFR32xG24 Dev Kit\" or \"Bluetooth - SoC EFR32xG26 Dev Kit + Apploader OTA DFU\" or
         \"Bluetooth - SoC Thunderboard EFR32BG22\".</string>
-    <string name="demo_firmware_name_iop">Bluetooth - SoC Interoperability Test FreeRTOS</string>
+    <string name="demo_firmware_name_iop">Bluetooth - SoC Interoperability Test\" or \"Bluetooth - SoC Interoperability Test FreeRTOS\" or \"Bluetooth - SoC Interoperability Test Micrium OS</string>
 
     <string name="demo_connected_to">CONNECTED TO: %s</string>
     <string name="temperature_type">TYPE: %s</string>
@@ -1712,9 +1764,9 @@
     <string name="channel_sounding_select_mode_title">Select Initiator or Reflector Mode </string>
     <string name="channel_sounding_select_mode_description">Choose between Phone as Initiator (distance measurement) or Phone as Reflector (Digital Key for Door Lock).</string>
     <string name="channel_sounding_mode_initiator">Phone as Initiator</string>
-    <string name="channel_sounding_mode_initiator_desc">Phone measures distance to the EFRxG24 device. Use for testing and development of Channel Sounding ranging.</string>
+    <string name="channel_sounding_mode_initiator_desc">Phone measures distance to the EFR32xG24 device. Use for testing and development of Channel Sounding ranging.</string>
     <string name="channel_sounding_mode_reflector">Phone as Reflector</string>
-    <string name="channel_sounding_mode_reflector_desc">Phone acts as a Digital Key for Door Lock. The door lock (EFRxG24) measures distance and unlocks when in range.</string>
+    <string name="channel_sounding_mode_reflector_desc">Phone acts as a Digital Key for Door Lock. The door lock (EFR32xG24) measures distance and unlocks when in range.</string>
     <string name="channel_sounding_reflector_device_name">Silabs Example</string>
     <string name="channel_sounding_scanning_for_reflector">Scanning for %s devices…</string>
     <string name="channel_sounding_reflector_not_found">No \"%s\" device found. Make sure the device is powered on and in range.</string>

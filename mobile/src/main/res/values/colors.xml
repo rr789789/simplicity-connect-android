@@ -226,4 +226,17 @@
     <color name="silabs_alternate_log_color_p2">#F9F9F9</color>
     <color name="silabs_matter_oven_bg">#F8F8FA</color>
     <color name="silabs_rangehood_yellow">#F9C80E</color>
+
+    <color name="iop_expert_tone_success_bg">#1F14A359</color>
+    <color name="iop_expert_tone_success_border">#4014A359</color>
+    <color name="iop_expert_tone_failure_bg">#1FD91E2A</color>
+    <color name="iop_expert_tone_failure_border">#40D91E2A</color>
+    <color name="iop_expert_tone_warning_bg">#1FF9C80E</color>
+    <color name="iop_expert_tone_warning_border">#40F9C80E</color>
+    <color name="iop_expert_tone_session_bg">#1AD91E2A</color>
+    <color name="iop_expert_tone_session_border">#33D91E2A</color>
+    <color name="iop_expert_tone_test_bg">#14000000</color>
+    <color name="iop_expert_tone_test_border">#2E000000</color>
+    <color name="iop_expert_tone_info_bg">#1A0086D9</color>
+    <color name="iop_expert_tone_info_border">#380086D9</color>
 </resources>

@@ -19,6 +19,7 @@ package com.siliconlabs.bledemo.features.iop_test.activities
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
+import androidx.lifecycle.lifecycleScope
 import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -39,6 +40,8 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
+import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
@@ -47,7 +50,10 @@ import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.get
-import androidx.lifecycle.lifecycleScope
+import androidx.fragment.app.Fragment
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayoutMediator
 import com.siliconlabs.bledemo.R
 import com.siliconlabs.bledemo.bluetooth.ble.GattCharacteristic
 import com.siliconlabs.bledemo.bluetooth.ble.GattService
@@ -55,8 +61,12 @@ import com.siliconlabs.bledemo.bluetooth.ble.TimeoutGattCallback
 import com.siliconlabs.bledemo.bluetooth.services.BluetoothService
 import com.siliconlabs.bledemo.databinding.ActivityIopTestBinding
 import com.siliconlabs.bledemo.databinding.DialogShareIopLogBinding
+import com.siliconlabs.bledemo.features.iop_test.dialogs.IOPGattInfoDialog
+import com.siliconlabs.bledemo.features.iop_test.fragments.IOPExpertFragment
+import com.siliconlabs.bledemo.features.iop_test.fragments.IOPExpertFragment.Companion.newExpertInstance
 import com.siliconlabs.bledemo.features.iop_test.fragments.IOPTestFragment
 import com.siliconlabs.bledemo.features.iop_test.fragments.IOPTestFragment.Companion.newInstance
+import com.siliconlabs.bledemo.features.iop_test.models.IOPExpertLogEntry
 import com.siliconlabs.bledemo.features.iop_test.models.*
 import com.siliconlabs.bledemo.features.iop_test.models.Common.Companion.isSetProperty
 import com.siliconlabs.bledemo.features.iop_test.models.IOPTest.Companion.createDataTest
@@ -67,6 +77,7 @@ import com.siliconlabs.bledemo.features.iop_test.test_cases.ota.OtaFileManager
 import com.siliconlabs.bledemo.features.iop_test.test_cases.ota.OtaFileSelectionDialog
 import com.siliconlabs.bledemo.features.iop_test.test_cases.ota.OtaProgressDialog
 import com.siliconlabs.bledemo.features.iop_test.utils.ErrorCodes
+import com.siliconlabs.bledemo.features.demo.throughput.views.SpeedView
 import com.siliconlabs.bledemo.features.scan.browser.dialogs.OtaLoadingDialog
 import com.siliconlabs.bledemo.home_screen.dialogs.SelectDeviceDialog
 import com.siliconlabs.bledemo.utils.AppUtil
@@ -116,6 +127,13 @@ class IOPTestActivity : AppCompatActivity() {
     private var countReTest = 0
     private var iopPhase3IndexStartChildrenTest = -1
     private var iopPhase3BondingStep = 2
+    private var securityAwaitingReadAfterBondRemove = false
+    /** True after security control 0x02/0x03 write until firmware disconnects. */
+    private var securityWaitingForFirmwareDisconnect = false
+    private var securityPendingReadIndex = -1
+    private var securityPendingControlByte = -1
+    private var gattDiscoveryInProgress = false
+    private var bondedDiscoveryRetryToken = 0
     private var iopPhase3ExtraDescriptor: BluetoothGattDescriptor? = null
     private var read_CCCD_value = ByteArray(1)
     var isCCCDPass = true
@@ -148,7 +166,49 @@ class IOPTestActivity : AppCompatActivity() {
     private var mByteNumReceived = 0
     private var mPDULength = 0
     private var mByteSpeed = 0
+    private var mPeakBitsPerSec = 0
     private var mEndThroughputNotification = false
+
+    private var throughputSpeedDialog: AlertDialog? = null
+    private var throughputSpeedView: SpeedView? = null
+    private var throughputDialogMtuText: TextView? = null
+    private var throughputDialogBufferText: TextView? = null
+    private var throughputDialogPeakText: TextView? = null
+    private var throughputDialogAverageText: TextView? = null
+    private var throughputDialogThresholdText: TextView? = null
+    private var throughputDialogDoneButton: AppCompatButton? = null
+    private var pendingThroughputDescriptorStatus: Int? = null
+    private var throughputDescriptorWriteStatus: Int = 0
+    private var isThroughputMeterActive = false
+
+    private val throughputMeterUpdateRunnable = object : Runnable {
+        override fun run() {
+            if (!isThroughputMeterActive) return
+            throughputSpeedView?.let { sv ->
+                val elapsed = System.currentTimeMillis() - mStartTimeThroughput
+                val speedBitsPerSec =
+                    if (elapsed > 0) (mByteNumReceived * 8L * 1000 / elapsed).toInt() else 0
+                mPeakBitsPerSec = maxOf(mPeakBitsPerSec, speedBitsPerSec)
+                sv.updateSpeed(
+                    iopThroughputProgressForSpeed(speedBitsPerSec),
+                    iopThroughputSpeedAsString(speedBitsPerSec),
+                    iopThroughputUnitAsString(speedBitsPerSec),
+                    SpeedView.Mode.DOWNLOAD
+                )
+            }
+            updateThroughputDialogMtuBufferLabels()
+            if (isThroughputMeterActive) {
+                handler?.postDelayed(this, 200L)
+            }
+        }
+    }
+
+    private val throughputDialogAutoDismissRunnable = Runnable {
+        if (throughputSpeedDialog?.isShowing != true) return@Runnable
+        val status = pendingThroughputDescriptorStatus ?: 0
+        pendingThroughputDescriptorStatus = null
+        continueIopTestAfterThroughputDescriptorWrite(status)
+    }
 
     private var otaProgressDialog: OtaProgressDialog? = null
     private var otaLoadingDialog: OtaLoadingDialog? = null
@@ -172,6 +232,10 @@ class IOPTestActivity : AppCompatActivity() {
     private var mtu = 247
     private var currentRxPhy: Int? = null
     private var mtuDivisible = 0
+    private var otaPacketSizeWithAck = 0
+    private var otaPacketSizeWithoutAck = 0
+    private var currentOtaPacketSize = 0
+    private val expertLoggedChildResults = HashSet<String>()
     private var isServiceChangedIndication = 1
     private var isConnecting = false
 
@@ -186,10 +250,21 @@ class IOPTestActivity : AppCompatActivity() {
     private var testCaseCount = 0
 
     private var shareMenuItem: MenuItem? = null
+    private var gattInfoMenuItem: MenuItem? = null
+    private var isExpertTabSelected = false
+    private var mExpertListener: IOPExpertListener? = null
+    private val expertLogEntries = ArrayList<IOPExpertLogEntry>()
+    private val pendingExpertLogEntries = ArrayList<IOPExpertLogEntry>()
+    private var expertLogFlushRunnable: Runnable? = null
+    private var pendingExpertOtaAutoContinue = false
+    private var isExpertLogData = false
+    private var expertFragment: IOPExpertFragment? = null
+    private val expertLogLock = Any()
     private lateinit var binding: ActivityIopTestBinding
 
     /** Prevents showing the post-run bonding dialog more than once per test run. */
     private var bondingRemovedDialogShownThisRun = false
+    private var endOfTestCleanupPerformed = false
 
     /** User must acknowledge the Security-step briefing before the IOP Security flow runs. */
     private var iopSecurityIntroAcknowledged = false
@@ -210,25 +285,35 @@ class IOPTestActivity : AppCompatActivity() {
             Log.d(TAG, msg)
             if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
                 handler?.postDelayed({
+                    if (isTestFinished || !isTestRunning || endOfTestCleanupPerformed) {
+                        return@postDelayed
+                    }
                     if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_SECURITY].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING
                         || getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_LE_PRIVACY].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING
                     /*  || getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_CACHING]
                               .getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING*/) {
-                        if (mBluetoothGatt != null) {
-                            mListCharacteristics.clear()
-                            characteristicsPhase3Security.clear()
-                            Log.d(TAG, "discovering services with 1600ms delay")
-                            Log.d(TAG, "isConnected: $isConnected")
-                            val result = mBluetoothGatt!!.discoverServices()
-                            if (!result) {
-                                Log.e(TAG, "discoverServices failed to start")
-                            }
-                        } else {
-                            retryIOP3Failed(mIndexRunning, ++countReTest / 2)
+                        mListCharacteristics.clear()
+                        characteristicsPhase3Security.clear()
+                        Log.d(TAG, "discovering services after bond; isConnected=$isConnected")
+                        if (!startGattServiceDiscovery("bondStateBonded")) {
+                            scheduleBondedServiceDiscoveryRetry()
                         }
                     }
-                }, 1600)
+                }, BOND_COMPLETE_DISCOVERY_DELAY_MS)
+            } else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED) {
+                if (securityAwaitingReadAfterBondRemove
+                    && !securityWaitingForFirmwareDisconnect
+                    && mIndexRunning == POSITION_TEST_IOP3_SECURITY
+                    && isTestRunning
+                    && !isTestFinished
+                    && !endOfTestCleanupPerformed
+                ) {
+                    scheduleSecurityAfterBondRemove(BOND_REMOVE_DELAY_MS)
+                }
             } else if (state == BluetoothDevice.BOND_BONDING) {
+                if (isTestFinished || !isTestRunning) {
+                    return
+                }
                 /* Toast.makeText(
                      this@IOPTestActivity,
                      R.string.iop_test_toast_bonding,
@@ -297,6 +382,7 @@ class IOPTestActivity : AppCompatActivity() {
      */
     private fun updateDataTestFailed(index: Int) {
         Log.d(TAG, "updateDataTestFailed $index")
+        dismissThroughputSpeedDialog()
         when (index) {
             POSITION_TEST_SCANNER -> {
                 scanLeDevice(false)
@@ -319,6 +405,23 @@ class IOPTestActivity : AppCompatActivity() {
         if (index >= POSITION_TEST_SCANNER) {
             isTestRunning = false
             isTestFinished = true
+            val otaSummary = if (otaPacketSizeWithAck > 0 && otaPacketSizeWithoutAck > 0) {
+                getString(
+                    R.string.iop_expert_log_ota_packet_size_summary,
+                    otaPacketSizeWithAck,
+                    otaPacketSizeWithoutAck,
+                    mtu
+                )
+            } else {
+                null
+            }
+            postExpertLog(
+                category = "RUN",
+                title = getString(R.string.iop_expert_log_test_finished),
+                detail = otaSummary,
+                tone = "success"
+            )
+            cancelPendingIopBluetoothWork()
             if (isConnected) {
                 isConnected = false
                 mBluetoothGatt?.disconnect()
@@ -362,6 +465,7 @@ class IOPTestActivity : AppCompatActivity() {
         isTestRunning = true
         isTestFinished = false
         isConnecting = false
+        logExpertScenarioStart(item)
         Log.d(TAG, "startItemTest: setStatusTest PROCESSING, item: $item")
         getSiliconLabsTestInfo().listItemTest[item].setStatusTest(Common.IOP3_TC_STATUS_PROCESSING)
         handler?.postDelayed({
@@ -490,12 +594,22 @@ class IOPTestActivity : AppCompatActivity() {
             }
 
             POSITION_TEST_IOP3_THROUGHPUT -> {
-                val throughputAcceptable = calculateAcceptableThroughput()
-                itemTestCaseInfo.setThroughputBytePerSec(mByteSpeed, throughputAcceptable)
-                Log.d(
-                    TAG,
-                    "finishItemTest: POSITION_TEST_IOP3_THROUGHPUT mByteSpeed $mByteSpeed throughputAcceptable $throughputAcceptable"
-                )
+                dismissThroughputSpeedDialog()
+                recalculateFinalThroughputByteSpeed()
+                if (throughputDescriptorWriteStatus == 0) {
+                    val throughputAcceptable = calculateAcceptableThroughput()
+                    itemTestCaseInfo.setThroughputBytePerSec(mByteSpeed, throughputAcceptable)
+                    Log.d(
+                        TAG,
+                        "finishItemTest: POSITION_TEST_IOP3_THROUGHPUT mByteSpeed $mByteSpeed throughputAcceptable $throughputAcceptable"
+                    )
+                } else {
+                    Log.e(
+                        TAG,
+                        "finishItemTest: POSITION_TEST_IOP3_THROUGHPUT notification disable failed, status $throughputDescriptorWriteStatus"
+                    )
+                    itemTestCaseInfo.setStatusTest(Common.IOP3_TC_STATUS_FAILED)
+                }
                 countReTest = 0
             }
 
@@ -505,12 +619,16 @@ class IOPTestActivity : AppCompatActivity() {
                 countReTest = 0
                 isTestRunning = false
                 isTestFinished = true
+                cancelPendingIopBluetoothWork()
             }
 
             POSITION_TEST_IOP3_SECURITY -> {
                 getItemTestCaseInfo(POSITION_TEST_IOP3_SECURITY).checkStatusItemService()
                 Log.d(TAG, "finishItemTest: POSITION_TEST_IOP3_SECURITY")
                 countReTest = 0
+                clearSecurityBondRemovePending()
+                handler?.removeCallbacks(iopSecurityRunnable)
+                bondedDiscoveryRetryToken++
                 //  isTestRunning = false
                 //  isTestFinished = true
                 mBluetoothService?.isNotificationEnabled = true
@@ -528,13 +646,20 @@ class IOPTestActivity : AppCompatActivity() {
             }
         }
         if (item != POSITION_TEST_IOP3_LE_PRIVACY && countReTest == 0) {
-            startItemTest(item + 1)
+            if (item == POSITION_TEST_IOP3_THROUGHPUT) {
+                // Defer so the throughput dialog can fully dismiss before Security intro popup.
+                handler?.postDelayed({ startItemTest(item + 1) }, 300)
+            } else {
+                startItemTest(item + 1)
+            }
         }
         /*if (item != POSITION_TEST_IOP3_SECURITY && countReTest == 0) {
           startItemTest(item + 1)
       }*/
 
 
+
+        logExpertScenarioResult(item, itemTestCaseInfo)
 
         runOnUiThread { updateUIFooter(isTestRunning) }
         mListener?.updateUi()
@@ -618,6 +743,7 @@ class IOPTestActivity : AppCompatActivity() {
                         }
                     }
                     itemChildrenTest.setDataAndCompareResult(characteristic)
+                    logExpertChildTestResultIfNeeded(POSITION_TEST_SERVICE, itemChildrenTest)
                 }
             }
             for (itemChildrenTest: ChildrenItemTestInfo in getListChildrenItemTestCase(
@@ -632,6 +758,7 @@ class IOPTestActivity : AppCompatActivity() {
                         }
                     }
                     itemChildrenTest.setDataAndCompareResult(characteristic)
+                    logExpertChildTestResultIfNeeded(POSITION_TEST_IOP3_SECURITY, itemChildrenTest)
                 }
             }
 
@@ -660,6 +787,18 @@ class IOPTestActivity : AppCompatActivity() {
             } else if (characteristicIOPPhase3Control?.uuid.toString() == characteristic.uuid.toString()) {
                 if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_THROUGHPUT].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING) {
                     iopPhase3RunTestCaseThroughput(0)
+                }
+                if (mIndexRunning == POSITION_TEST_IOP3_SECURITY
+                    && getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_SECURITY].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING
+                    && type == 1
+                    && status == 0
+                ) {
+                    when (securityControlByteFromControlWrite(characteristic.value)) {
+                        IOP_SECURITY_CONTROL_AUTHENTICATION ->
+                            removeBondAfterSecurityControlWrite(IOP_SECURITY_CONTROL_AUTHENTICATION)
+                        IOP_SECURITY_CONTROL_BONDING ->
+                            removeBondAfterSecurityControlWrite(IOP_SECURITY_CONTROL_BONDING)
+                    }
                 } /*else if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_LE_PRIVACY].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING) {
                     iopPhase3RunTestCaseLEPrivacy(0)
                     finishItemTest(
@@ -742,8 +881,13 @@ class IOPTestActivity : AppCompatActivity() {
      */
     fun reconnect(delaytoconnect: Long) {
         if (!isInAppOTA) {
-            mBluetoothDevice = mBluetoothGatt?.device
-            if (mBluetoothService?.isGattConnected()!!) {
+            if (isTestFinished || !isTestRunning || isFinishing || endOfTestCleanupPerformed) {
+                Log.d(TAG, "reconnect ignored: test ended")
+                return
+            }
+            gattDiscoveryInProgress = false
+            mBluetoothDevice = mBluetoothDevice ?: mBluetoothGatt?.device
+            if (mBluetoothService?.isGattConnected() == true) {
                 mBluetoothService?.clearConnectedGatt()
             }
 
@@ -757,6 +901,10 @@ class IOPTestActivity : AppCompatActivity() {
 
             reconnectTimer?.schedule(object : TimerTask() {
                 override fun run() {
+                    if (isTestFinished || !isTestRunning || isFinishing) {
+                        Log.d(TAG, "reconnect skipped: test ended")
+                        return
+                    }
                     Log.d(TAG, "Attempting connection...")
                     mBluetoothBinding = object : BluetoothService.Binding(applicationContext) {
                         override fun onBound(service: BluetoothService?) {
@@ -837,6 +985,17 @@ class IOPTestActivity : AppCompatActivity() {
         onConnectionFailure: (() -> Unit)? = null
     ) {
         Log.d(TAG, "connectToDevice() with param called with: bluetoothDevice = $bluetoothDevice")
+        bluetoothDevice?.address?.let {
+            postExpertLog(
+                category = "LOG",
+                title = getString(
+                    R.string.iop_expert_log_connecting,
+                    activeExpertTestId(),
+                    it
+                ),
+                tone = "info"
+            )
+        }
         mStartTimeConnection = System.currentTimeMillis()
 
         // Save the callback functions
@@ -863,6 +1022,17 @@ class IOPTestActivity : AppCompatActivity() {
 
     private fun connectToDevice(bluetoothDevice: BluetoothDevice?) {
         Log.d(TAG, "connectToDevice() called with: bluetoothDevice = $bluetoothDevice")
+        bluetoothDevice?.address?.let {
+            postExpertLog(
+                category = "LOG",
+                title = getString(
+                    R.string.iop_expert_log_connecting,
+                    activeExpertTestId(),
+                    it
+                ),
+                tone = "info"
+            )
+        }
         mStartTimeConnection = System.currentTimeMillis()
 
         Log.d(TAG, "connectToDevice(), postDelayed connectionRunnable")
@@ -893,11 +1063,20 @@ class IOPTestActivity : AppCompatActivity() {
         isTestRunning = true
         isTestFinished = false
         bondingRemovedDialogShownThisRun = false
+        endOfTestCleanupPerformed = false
 
         // Drop pending work from any previous run (delays, retries, scan timeout).
+        cancelExpertLogFlush()
         handler?.removeCallbacksAndMessages(null)
         reconnectTimer?.cancel()
         reconnectTimer = Timer()
+
+        clearExpertLog()
+        postExpertLog(
+            category = "RUN",
+            title = getString(R.string.iop_expert_log_test_started),
+            tone = "session"
+        )
 
         resetFunctionTest()
         removeBondIfBondedForDeviceUnderTest()
@@ -910,6 +1089,7 @@ class IOPTestActivity : AppCompatActivity() {
      * Update Ui footer
      */
     private fun updateUIFooter(isRunning: Boolean) {
+        updateNavigationButtonStates()
         if (!isRunning) {
             binding.btnStartAndStopTest.apply {
                 text = getString(R.string.button_run_test)
@@ -922,10 +1102,7 @@ class IOPTestActivity : AppCompatActivity() {
                 )
             }
             if (isTestFinished) {
-                shareMenuItem?.isVisible = true
-                mBluetoothDevice?.let { removeBond(it) }
-                releaseIopBluetoothResources()
-                showBondingRemovedDialogIfNeeded()
+                performEndOfTestCleanup()
             }
         } else {
             binding.btnStartAndStopTest?.apply {
@@ -954,13 +1131,14 @@ class IOPTestActivity : AppCompatActivity() {
      * Clears an existing pairing so the IOP run can perform a fresh bonding flow.
      * Uses the last known device and, if set, the address in the system bonded list.
      */
-    private fun removeBondIfBondedForDeviceUnderTest() {
-        removeBondIfBonded(mBluetoothDevice)
+    private fun removeBondIfBondedForDeviceUnderTest(): Boolean {
+        var removed = removeBondIfBonded(mBluetoothDevice)
         mDeviceAddress?.let { addr ->
             bluetoothAdapter.bondedDevices
                 .find { it.address.equals(addr, ignoreCase = true) }
-                ?.let { removeBondIfBonded(it) }
+                ?.let { removed = removeBondIfBonded(it) || removed }
         }
+        return removed
     }
 
     private fun removeBondIfBonded(device: BluetoothDevice?): Boolean {
@@ -970,6 +1148,250 @@ class IOPTestActivity : AppCompatActivity() {
         val invoked = removeBond(device)
         Log.d(TAG, "removeBondIfBonded: invoked=$invoked address=${device.address}")
         return invoked
+    }
+
+    /**
+     * After IOP Security control writes 0x02 (authentication) or 0x03 (bonding), wait for the
+     * firmware to drop the link before clearing the phone bond and reconnecting.
+     */
+    private fun removeBondAfterSecurityControlWrite(securityControlByte: Int) {
+        Log.d(
+            TAG,
+            "removeBondAfterSecurityControlWrite: control=0x${securityControlByte.toString(16)} index=$iopPhase3IndexStartChildrenTest"
+        )
+        securityPendingControlByte = securityControlByte
+        securityPendingReadIndex = iopPhase3IndexStartChildrenTest
+        securityAwaitingReadAfterBondRemove = true
+        securityWaitingForFirmwareDisconnect = true
+        resetSecurityChildReadState(securityPendingReadIndex)
+        mBluetoothDevice = mBluetoothDevice ?: mBluetoothGatt?.device
+        isConnecting = true
+        handler?.removeCallbacks(securityAfterBondRemoveRunnable)
+        handler?.removeCallbacks(securityFirmwareDisconnectTimeoutRunnable)
+        scheduleSecurityFirmwareDisconnectTimeout()
+        Log.d(
+            TAG,
+            "removeBondAfterSecurityControlWrite: waiting for firmware disconnect before bond removal"
+        )
+    }
+
+    private val securityFirmwareDisconnectTimeoutRunnable = Runnable {
+        if (!securityWaitingForFirmwareDisconnect || !securityAwaitingReadAfterBondRemove) {
+            return@Runnable
+        }
+        Log.w(TAG, "security firmware disconnect timeout; forcing local disconnect")
+        securityWaitingForFirmwareDisconnect = false
+        isConnecting = true
+        mBluetoothDevice = mBluetoothDevice ?: mBluetoothGatt?.device
+        try {
+            mBluetoothGatt?.disconnect()
+        } catch (_: Exception) {
+        }
+        handler?.postDelayed({ onSecurityLinkDownProceedWithBondRemove() }, 500L)
+    }
+
+    private fun scheduleSecurityFirmwareDisconnectTimeout() {
+        handler?.removeCallbacks(securityFirmwareDisconnectTimeoutRunnable)
+        handler?.postDelayed(
+            securityFirmwareDisconnectTimeoutRunnable,
+            SECURITY_FIRMWARE_DISCONNECT_TIMEOUT_MS
+        )
+    }
+
+    /**
+     * Link is down after a security control write; now safe to clear the phone bond off-link.
+     */
+    private fun onSecurityLinkDownProceedWithBondRemove() {
+        if (!securityAwaitingReadAfterBondRemove
+            || isTestFinished
+            || !isTestRunning
+            || endOfTestCleanupPerformed
+            || mIndexRunning != POSITION_TEST_IOP3_SECURITY
+        ) {
+            return
+        }
+        isConnecting = true
+        mBluetoothDevice = mBluetoothDevice ?: mBluetoothGatt?.device
+        val bondRemoved = removeBondIfBondedForDeviceUnderTest()
+        val device = mBluetoothDevice
+            ?: mDeviceAddress?.let { addr ->
+                bluetoothAdapter.bondedDevices
+                    ?.find { it.address.equals(addr, ignoreCase = true) }
+            }
+        if (!bondRemoved || device?.bondState == BluetoothDevice.BOND_NONE) {
+            scheduleSecurityAfterBondRemove(BOND_REMOVE_DELAY_MS)
+        } else {
+            // Fallback if BOND_NONE broadcast is delayed on some OEM stacks (e.g. Samsung).
+            scheduleSecurityAfterBondRemove(BOND_REMOVE_DELAY_MS * 3)
+        }
+    }
+
+    private val securityAfterBondRemoveRunnable = Runnable {
+        continueSecurityAfterBondRemove()
+    }
+
+    private fun scheduleSecurityAfterBondRemove(delayMs: Long) {
+        if (isTestFinished || !isTestRunning || endOfTestCleanupPerformed) {
+            return
+        }
+        handler?.removeCallbacks(securityAfterBondRemoveRunnable)
+        handler?.postDelayed(securityAfterBondRemoveRunnable, delayMs)
+    }
+
+    private fun clearSecurityBondRemovePending() {
+        securityAwaitingReadAfterBondRemove = false
+        securityWaitingForFirmwareDisconnect = false
+        securityPendingReadIndex = -1
+        securityPendingControlByte = -1
+        handler?.removeCallbacks(securityAfterBondRemoveRunnable)
+        handler?.removeCallbacks(securityFirmwareDisconnectTimeoutRunnable)
+    }
+
+    /**
+     * Cancels delayed security / discovery work so end-of-run bond removal does not reconnect or re-pair.
+     */
+    private fun cancelPendingIopBluetoothWork() {
+        clearSecurityBondRemovePending()
+        bondedDiscoveryRetryToken++
+        gattDiscoveryInProgress = false
+        handler?.removeCallbacks(iopSecurityRunnable)
+        handler?.removeCallbacks(connectionRunnable)
+        isConnecting = false
+        reconnectTimer?.cancel()
+        reconnectTimer = Timer()
+    }
+
+    /**
+     * Idempotent teardown after a full IOP run. Cancels stale reconnect/discovery work before bond removal.
+     */
+    private fun performEndOfTestCleanup() {
+        if (endOfTestCleanupPerformed || !isTestFinished) {
+            return
+        }
+        endOfTestCleanupPerformed = true
+        shareMenuItem?.isVisible = true
+        cancelPendingIopBluetoothWork()
+        val bondRemoved = removeBondIfBondedForDeviceUnderTest()
+        Log.d(TAG, "performEndOfTestCleanup: bondRemoved=$bondRemoved")
+        val releaseDelayMs = if (bondRemoved) BOND_REMOVE_DELAY_MS else 0L
+        handler?.postDelayed({
+            if (isFinishing) {
+                return@postDelayed
+            }
+            releaseIopBluetoothResources()
+            showBondingRemovedDialogIfNeeded()
+        }, releaseDelayMs)
+    }
+
+    private fun resetSecurityChildReadState(index: Int) {
+        getListChildrenItemTestCase(POSITION_TEST_IOP3_SECURITY)?.getOrNull(index)?.apply {
+            isReadCharacteristic = false
+            isWriteCharacteristic = false
+            statusRead = -1
+            statusWrite = -1
+            statusRunTest = 0
+        }
+    }
+
+    private fun continueSecurityAfterBondRemove() {
+        if (!securityAwaitingReadAfterBondRemove
+            || isFinishing
+            || isTestFinished
+            || endOfTestCleanupPerformed
+            || !isTestRunning
+            || mIndexRunning != POSITION_TEST_IOP3_SECURITY
+        ) {
+            clearSecurityBondRemovePending()
+            return
+        }
+        handler?.removeCallbacks(securityAfterBondRemoveRunnable)
+        val index = securityPendingReadIndex
+        val controlByte = securityPendingControlByte
+        if (index < 0) {
+            clearSecurityBondRemovePending()
+            return
+        }
+        iopPhase3IndexStartChildrenTest = index
+        resetSecurityChildReadState(index)
+        mBluetoothDevice = mBluetoothDevice ?: mBluetoothGatt?.device
+        mListCharacteristics.clear()
+        characteristicsPhase3Security.clear()
+        characteristicIOPPhase3Control = null
+
+        Log.d(
+            TAG,
+            "continueSecurityAfterBondRemove: reconnect after security control 0x" +
+                controlByte.toString(16)
+        )
+        isConnecting = true
+        reconnect(BOND_REMOVE_DELAY_MS + BOND_RECONNECT_EXTRA_DELAY_MS)
+    }
+
+    private fun securityControlByteFromControlWrite(value: ByteArray?): Int? {
+        if (value == null || value.size < 2) {
+            return null
+        }
+        return value[1].toInt() and 0xFF
+    }
+
+    /**
+     * Starts GATT service discovery when the link is up. Skips if a discovery is already running.
+     */
+    private fun startGattServiceDiscovery(source: String): Boolean {
+        if (isTestFinished || !isTestRunning) {
+            return false
+        }
+        val gatt = mBluetoothGatt
+        if (gatt == null || !isConnected) {
+            Log.w(TAG, "startGattServiceDiscovery($source): gatt not ready (connected=$isConnected)")
+            return false
+        }
+        if (gattDiscoveryInProgress) {
+            Log.d(TAG, "startGattServiceDiscovery($source): already in progress")
+            return true
+        }
+        val started = gatt.discoverServices()
+        if (started) {
+            gattDiscoveryInProgress = true
+            Log.d(TAG, "startGattServiceDiscovery($source): started")
+        } else {
+            Log.e(TAG, "startGattServiceDiscovery($source): failed to start")
+        }
+        return started
+    }
+
+    private fun scheduleBondedServiceDiscoveryRetry(attempt: Int = 1) {
+        if (isTestFinished || !isTestRunning) {
+            return
+        }
+        if (attempt > 6) {
+            Log.e(TAG, "scheduleBondedServiceDiscoveryRetry: giving up after $attempt attempts")
+            if (!isTestFinished
+                && isTestRunning
+                && mIndexRunning == POSITION_TEST_IOP3_SECURITY
+            ) {
+                isConnecting = true
+                reconnect(BOND_REMOVE_DELAY_MS + BOND_RECONNECT_EXTRA_DELAY_MS)
+            } else if (!isTestFinished && isTestRunning) {
+                retryIOP3Failed(mIndexRunning, ++countReTest / 2)
+            }
+            return
+        }
+        val retryToken = bondedDiscoveryRetryToken
+        handler?.postDelayed({
+            if (retryToken != bondedDiscoveryRetryToken || isTestFinished || !isTestRunning) {
+                return@postDelayed
+            }
+            if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_SECURITY].getStatusTest() != Common.IOP3_TC_STATUS_PROCESSING
+                && getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_LE_PRIVACY].getStatusTest() != Common.IOP3_TC_STATUS_PROCESSING
+            ) {
+                return@postDelayed
+            }
+            if (startGattServiceDiscovery("bondStateBonded-retry$attempt")) {
+                return@postDelayed
+            }
+            scheduleBondedServiceDiscoveryRetry(attempt + 1)
+        }, BOND_DISCOVERY_RETRY_STEP_MS * attempt)
     }
 
     private fun showBondingRemovedDialogIfNeeded() {
@@ -1028,6 +1450,7 @@ class IOPTestActivity : AppCompatActivity() {
         countReTest = 0
         iopPhase3IndexStartChildrenTest = -1
         iopPhase3BondingStep = 2
+        clearSecurityBondRemovePending()
         iopSecurityIntroAcknowledged = false
         iopPhase3ExtraDescriptor = null
         iopPhase3DatabaseHash = null
@@ -1042,6 +1465,7 @@ class IOPTestActivity : AppCompatActivity() {
         mByteNumReceived = 0
         mPDULength = 0
         mByteSpeed = 0
+        mPeakBitsPerSec = 0
         mEndThroughputNotification = false
 
         read_CCCD_value = ByteArray(1)
@@ -1076,8 +1500,14 @@ class IOPTestActivity : AppCompatActivity() {
         mtu = 247
         currentRxPhy = null
         mtuDivisible = 0
+        otaPacketSizeWithAck = 0
+        otaPacketSizeWithoutAck = 0
+        currentOtaPacketSize = 0
+        expertLoggedChildResults.clear()
         isServiceChangedIndication = 1
         isConnecting = false
+
+        gattDiscoveryInProgress = false
 
         isDisabled = false
 
@@ -1108,6 +1538,7 @@ class IOPTestActivity : AppCompatActivity() {
             Log.d("onDestroy", "scanLeDevice(false)")
         }
 
+        dismissThroughputSpeedDialog()
         handler?.removeCallbacksAndMessages(null)
         reconnectTimer = null
         handler = null
@@ -1126,6 +1557,329 @@ class IOPTestActivity : AppCompatActivity() {
 
     fun setListener(listener: Listener) {
         mListener = listener
+    }
+
+    fun setExpertListener(listener: IOPExpertListener) {
+        mExpertListener = listener
+        notifyExpertLogUi()
+    }
+
+    private fun isExpertMode(): Boolean = isExpertTabSelected
+
+    private fun cancelExpertLogFlush() {
+        expertLogFlushRunnable?.let { handler?.removeCallbacks(it) }
+        expertLogFlushRunnable = null
+    }
+
+    private fun postExpertLog(
+        category: String,
+        title: String,
+        detail: String? = null,
+        tone: String = "info"
+    ) {
+        val entry = IOPExpertLogEntry(
+            timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()),
+            category = category,
+            title = title,
+            detail = detail,
+            tone = tone
+        )
+        val enqueue = Runnable {
+            synchronized(expertLogLock) {
+                pendingExpertLogEntries.add(entry)
+            }
+            scheduleExpertLogFlush()
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            enqueue.run()
+        } else {
+            handler?.post(enqueue) ?: enqueue.run()
+        }
+    }
+
+    private fun scheduleExpertLogFlush() {
+        if (expertLogFlushRunnable != null) return
+        expertLogFlushRunnable = Runnable {
+            expertLogFlushRunnable = null
+            flushPendingExpertLogEntries()
+        }.also {
+            handler?.postDelayed(it, 80L)
+        }
+    }
+
+    private fun flushPendingExpertLogEntries() {
+        val batch = synchronized(expertLogLock) {
+            if (pendingExpertLogEntries.isEmpty()) {
+                return
+            }
+            pendingExpertLogEntries.toList().also { pendingExpertLogEntries.clear() }
+        }
+        synchronized(expertLogLock) {
+            for (entry in batch) {
+                val last = expertLogEntries.lastOrNull()
+                if (last != null && last.canCollapseWith(entry)) {
+                    last.repeatCount += 1
+                    last.timestamp = entry.timestamp
+                } else {
+                    expertLogEntries.add(entry)
+                }
+            }
+        }
+        notifyExpertLogUi()
+    }
+
+    private fun notifyExpertLogUi() {
+        val snapshot = synchronized(expertLogLock) { expertLogEntries.toList() }
+        runOnUiThread {
+            val listener = mExpertListener
+                ?: findExpertFragment()?.also { mExpertListener = it }
+                ?: expertFragment?.takeIf { it.isAdded }?.also { mExpertListener = it }
+            listener?.restoreLog(snapshot)
+        }
+    }
+
+    private fun clearExpertLog() {
+        cancelExpertLogFlush()
+        expertLoggedChildResults.clear()
+        synchronized(expertLogLock) {
+            pendingExpertLogEntries.clear()
+            expertLogEntries.clear()
+        }
+        runOnUiThread {
+            mExpertListener?.clearLog()
+            expertFragment?.takeIf { it.isAdded }?.clearLog()
+            findExpertFragment()?.clearLog()
+        }
+    }
+
+    private fun formatCharacteristicValue(bytes: ByteArray?): String {
+        if (bytes == null || bytes.isEmpty()) return "empty"
+        return bytes.joinToString(" ") { String.format(Locale.US, "%02X", it) }
+    }
+
+    private fun packetSizeOf(bytes: ByteArray?): Int = bytes?.size ?: 0
+
+    private fun formatScenarioTestId(itemTestCaseInfo: ItemTestCaseInfo): String {
+        return when {
+            itemTestCaseInfo.idTest < 5 -> itemTestCaseInfo.idTest.toString()
+            itemTestCaseInfo.idTest == 7 -> "7.1"
+            itemTestCaseInfo.idTest == 5 -> "6.1"
+            itemTestCaseInfo.idTest == 6 -> "6.2"
+            itemTestCaseInfo.idTest == 9 -> "7.6"
+            else -> (itemTestCaseInfo.idTest + 1).toString()
+        }
+    }
+
+    private fun formatChildTestId(
+        itemTestCaseInfo: ItemTestCaseInfo,
+        child: ChildrenItemTestInfo
+    ): String {
+        val major = when {
+            child.id >= 11 -> itemTestCaseInfo.idTest + 1
+            itemTestCaseInfo.idTest == 8 -> 7
+            else -> itemTestCaseInfo.idTest
+        }
+        val minor = when {
+            child.id >= 11 -> child.id - 10
+            itemTestCaseInfo.idTest < 6 -> child.id
+            itemTestCaseInfo.idTest == 8 -> child.id + 1
+            else -> child.id + 4
+        }
+        return "$major.$minor"
+    }
+
+    private fun activeExpertTestId(): String {
+        if (mIndexRunning < 0) return "—"
+        val item = getSiliconLabsTestInfo().listItemTest.getOrNull(mIndexRunning) ?: return "—"
+        return when (mIndexRunning) {
+            POSITION_TEST_SERVICE -> {
+                val child = getListChildrenItemTestCase(POSITION_TEST_SERVICE)
+                    ?.getOrNull(mIndexStartChildrenTest)
+                child?.let { formatChildTestId(item, it) } ?: formatScenarioTestId(item)
+            }
+            POSITION_TEST_IOP3_SECURITY -> {
+                val child = getListChildrenItemTestCase(POSITION_TEST_IOP3_SECURITY)
+                    ?.getOrNull(iopPhase3IndexStartChildrenTest)
+                child?.let { formatChildTestId(item, it) } ?: formatScenarioTestId(item)
+            }
+            else -> formatScenarioTestId(item)
+        }
+    }
+
+    private fun logExpertChildTestStart(
+        itemPosition: Int,
+        childIndex: Int
+    ) {
+        val item = getSiliconLabsTestInfo().listItemTest.getOrNull(itemPosition) ?: return
+        val child = getListChildrenItemTestCase(itemPosition)?.getOrNull(childIndex) ?: return
+        val testId = formatChildTestId(item, child)
+        postExpertLog(
+            category = "TEST",
+            title = getString(R.string.iop_expert_log_child_test_start, testId, child.nameTest),
+            detail = child.properties.takeIf { it.isNotBlank() },
+            tone = "test"
+        )
+    }
+
+    private fun logExpertChildTestResultIfNeeded(
+        itemPosition: Int,
+        child: ChildrenItemTestInfo
+    ) {
+        val item = getSiliconLabsTestInfo().listItemTest.getOrNull(itemPosition) ?: return
+        val testId = formatChildTestId(item, child)
+        if (!expertLoggedChildResults.add(testId) || child.statusRunTest != 1) {
+            return
+        }
+        if (child.statusChildrenTest) {
+            postExpertLog(
+                category = "PASS",
+                title = getString(R.string.iop_expert_log_test_pass, testId),
+                detail = child.nameTest,
+                tone = "success"
+            )
+        } else {
+            val errorDetail = child.getValueErrorLog().takeIf { it != "N/A" }
+            postExpertLog(
+                category = "FAIL",
+                title = getString(R.string.iop_expert_log_test_fail, testId),
+                detail = errorDetail ?: child.nameTest,
+                tone = "failure"
+            )
+        }
+    }
+
+    private fun logExpertOtaPacketSize(reliableWrite: Boolean) {
+        val testId = activeExpertTestId()
+        val packetSize = if (reliableWrite) {
+            var minus = 0
+            var divisible: Int
+            do {
+                divisible = mtu - 3 - minus
+                minus++
+            } while (divisible % 4 != 0)
+            otaPacketSizeWithAck = divisible
+            divisible
+        } else {
+            val size = (mtu - 3).coerceAtLeast(0)
+            otaPacketSizeWithoutAck = size
+            size
+        }
+        currentOtaPacketSize = packetSize
+        val mode = if (reliableWrite) {
+            getString(R.string.iop_expert_log_ota_ack_mode)
+        } else {
+            getString(R.string.iop_expert_log_ota_unack_mode)
+        }
+        postExpertLog(
+            category = "LOG",
+            title = getString(R.string.iop_expert_log_ota_packet_size, testId, packetSize, mode),
+            tone = "ota"
+        )
+    }
+
+    private fun logExpertOtaComplete() {
+        val testId = activeExpertTestId()
+        postExpertLog(
+            category = "PASS",
+            title = getString(
+                R.string.iop_expert_log_ota_complete,
+                testId,
+                currentOtaPacketSize
+            ),
+            tone = "success"
+        )
+        if (otaPacketSizeWithAck > 0 && otaPacketSizeWithoutAck > 0) {
+            postExpertLog(
+                category = "LOG",
+                title = getString(
+                    R.string.iop_expert_log_ota_packet_size_summary,
+                    otaPacketSizeWithAck,
+                    otaPacketSizeWithoutAck,
+                    mtu
+                ),
+                tone = "ota"
+            )
+        }
+    }
+
+    private fun characteristicLabel(characteristic: BluetoothGattCharacteristic?): String {
+        if (characteristic == null) return "unknown characteristic"
+        return characteristic.uuid.toString()
+    }
+
+    private fun logExpertScenarioStart(item: Int) {
+        val testCase = getSiliconLabsTestInfo().listItemTest.getOrNull(item) ?: return
+        postExpertLog(
+            category = "SCENARIO",
+            title = getString(
+                R.string.iop_expert_log_scenario_start,
+                formatScenarioTestId(testCase),
+                testCase.titlesTest
+            ),
+            detail = testCase.describe,
+            tone = "discovery"
+        )
+    }
+
+    private fun logExpertScenarioResult(item: Int, itemTestCaseInfo: ItemTestCaseInfo) {
+        val testId = formatScenarioTestId(itemTestCaseInfo)
+        when (itemTestCaseInfo.getStatusTest()) {
+            Common.IOP3_TC_STATUS_PASS -> postExpertLog(
+                category = "PASS",
+                title = getString(R.string.iop_expert_log_test_pass, testId),
+                detail = if (item == POSITION_TEST_IOP3_THROUGHPUT) {
+                    itemTestCaseInfo.getThroughputPassedTestcase()
+                } else {
+                    itemTestCaseInfo.describe
+                },
+                tone = "success"
+            )
+            Common.IOP3_TC_STATUS_FAILED -> {
+                val detail = when (item) {
+                    POSITION_TEST_IOP3_THROUGHPUT -> itemTestCaseInfo.getThroughputPassedTestcase()
+                    else -> itemTestCaseInfo.describe
+                }
+                postExpertLog(
+                    category = "FAIL",
+                    title = getString(R.string.iop_expert_log_test_fail, testId),
+                    detail = detail,
+                    tone = "failure"
+                )
+            }
+        }
+    }
+
+    private fun buildExpertLogText(): String {
+        val snapshot = synchronized(expertLogLock) { expertLogEntries.toList() }
+        return snapshot.joinToString("\n\n") { entry ->
+            buildString {
+                append(entry.timestamp)
+                if (entry.category.isNotBlank()) {
+                    append(" [")
+                    append(entry.category)
+                    if (entry.repeatCount > 1) append(" x${entry.repeatCount}")
+                    append("]")
+                }
+                append("\n")
+                append(entry.title)
+                entry.detail?.takeIf { it.isNotBlank() }?.let {
+                    append("\n")
+                    append(it)
+                }
+            }
+        }
+    }
+
+    private fun launchGattInfo() {
+        if (isTestRunning) return
+        val info = getSiliconLabsTestInfo()
+        IOPGattInfoDialog.newInstance(info.fwName, info.deviceMacAddress)
+            .show(supportFragmentManager, IOPGattInfoDialog::class.java.simpleName)
+    }
+
+    private fun updateNavigationButtonStates() {
+        gattInfoMenuItem?.isVisible = !isTestRunning
+        gattInfoMenuItem?.isEnabled = !isTestRunning
     }
 
     override fun onBackPressed() {
@@ -1165,7 +1919,7 @@ class IOPTestActivity : AppCompatActivity() {
         bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
         handler = Handler(Looper.getMainLooper())
 
-        addChildrenView()
+        setupViewPager()
         showDetailInformationTest(POSITION_TEST_SCANNER, true)
         checkBluetoothExtendedSettings()
         registerBroadcastReceivers()
@@ -1230,9 +1984,11 @@ class IOPTestActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_iop_test, menu)
-        shareMenuItem = menu?.get(0)?.also {
+        gattInfoMenuItem = menu?.findItem(R.id.iop_gatt_info)
+        shareMenuItem = menu?.findItem(R.id.iop_share)?.also {
             it.isVisible = false
         }
+        updateNavigationButtonStates()
         return true
     }
 
@@ -1246,13 +2002,21 @@ class IOPTestActivity : AppCompatActivity() {
 
         dialogBinding.tvTestLog.setOnClickListener {
             isLogcatData = false
-            //saveLogFile()
+            isExpertLogData = false
+            saveLogcatFile()
+            dialog.dismiss()
+        }
+
+        dialogBinding.tvExpertLog.setOnClickListener {
+            isLogcatData = false
+            isExpertLogData = true
             saveLogcatFile()
             dialog.dismiss()
         }
 
         dialogBinding.tvAppLog.setOnClickListener {
             isLogcatData = true
+            isExpertLogData = false
             saveLogcatFile()
             dialog.dismiss()
         }
@@ -1265,6 +2029,11 @@ class IOPTestActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.iop_gatt_info -> {
+                launchGattInfo()
+                true
+            }
+
             R.id.iop_share -> {
                 showCustomDialog()
                 true
@@ -1324,6 +2093,15 @@ class IOPTestActivity : AppCompatActivity() {
         if (enable) {
             if (!isScanning) {
                 isScanning = true
+                postExpertLog(
+                    category = "LOG",
+                    title = getString(
+                        R.string.iop_expert_log_scanning,
+                        activeExpertTestId(),
+                        getSiliconLabsTestInfo().fwName
+                    ),
+                    tone = "info"
+                )
                 handler?.postDelayed(scanRunnable, SCAN_PERIOD)
                 readScannerStartTime = true
                 Log.d(TAG, "Scanner Fw name: " + getSiliconLabsTestInfo().fwName)
@@ -1383,13 +2161,47 @@ class IOPTestActivity : AppCompatActivity() {
     }
 
     /**
-     * Add Fragment have not yet list item test.
+     * Add Standard and Expert mode tabs.
      */
-    private fun addChildrenView() {
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.container, newInstance(), IOPTestFragment::class.java.name)
-            disallowAddToBackStack()
-        }.commit()
+    private fun setupViewPager() {
+        val pagerAdapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = 2
+
+            override fun createFragment(position: Int): Fragment = when (position) {
+                TAB_EXPERT -> newExpertInstance().also { expertFragment = it }
+                else -> newInstance()
+            }
+        }
+        binding.viewPagerIop.apply {
+            adapter = pagerAdapter
+            offscreenPageLimit = 2
+            isUserInputEnabled = false
+        }
+        TabLayoutMediator(binding.tabLayoutIopMode, binding.viewPagerIop) { tab, position ->
+            tab.text = when (position) {
+                TAB_EXPERT -> getString(R.string.iop_tab_expert)
+                else -> getString(R.string.iop_tab_standard)
+            }
+        }.attach()
+        binding.tabLayoutIopMode.addOnTabSelectedListener(object :
+            com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                isExpertTabSelected = tab?.position == TAB_EXPERT
+                findExpertFragment()?.let { setExpertListener(it) }
+            }
+
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) = Unit
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) = Unit
+        })
+        binding.viewPagerIop.post {
+            findExpertFragment()?.let { setExpertListener(it) }
+        }
+    }
+
+    private fun findExpertFragment(): IOPExpertFragment? {
+        return expertFragment?.takeIf { it.isAdded }
+            ?: (supportFragmentManager.findFragmentByTag("f$TAB_EXPERT") as? IOPExpertFragment)
+            ?: supportFragmentManager.fragments.filterIsInstance<IOPExpertFragment>().firstOrNull()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
@@ -1402,8 +2214,46 @@ class IOPTestActivity : AppCompatActivity() {
             }
 
             GBL_FILE_CHOICE_REQUEST_CODE -> {
+                val wasExpertOtaAuto = pendingExpertOtaAutoContinue
+                pendingExpertOtaAutoContinue = false
+                if (wasExpertOtaAuto && resultCode != Activity.RESULT_OK) {
+                    postExpertLog(
+                        category = "FAIL",
+                        title = getString(
+                            R.string.iop_expert_log_ota_file_cancelled,
+                            activeExpertTestId()
+                        ),
+                        tone = "failure"
+                    )
+                    checkIOP3OTA(mIndexRunning, Common.IOP3_TC_STATUS_FAILED)
+                    finishItemTest(
+                        mIndexRunning,
+                        getSiliconLabsTestInfo().listItemTest[mIndexRunning]
+                    )
+                    return
+                }
                 intent?.data?.let {
                     otaFileManager?.readFilename(it)
+                    if (wasExpertOtaAuto) {
+                        if (otaFileManager?.hasCorrectFileExtension() == true) {
+                            otaFileManager?.readFile(it)
+                            postExpertLog(
+                                category = "LOG",
+                                title = getString(
+                                    R.string.iop_expert_log_ota_file_selected,
+                                    activeExpertTestId(),
+                                    otaFileManager?.otaFilename ?: it.lastPathSegment.orEmpty()
+                                ),
+                                tone = "info"
+                            )
+                            startOtaProcess()
+                        } else {
+                            CustomToastManager.show(
+                                this@IOPTestActivity, getString(R.string.incorrect_file), 5000
+                            )
+                        }
+                        return
+                    }
                     otaFileSelectionDialog?.changeFileName(otaFileManager?.otaFilename)
                     if (otaFileManager?.hasCorrectFileExtension() == true) {
                         otaFileManager?.readFile(it)
@@ -1459,6 +2309,8 @@ class IOPTestActivity : AppCompatActivity() {
             OutputStreamWriter(fOut).use { myOutWriter ->
                 if (isLogcatData) {
                     myOutWriter.write(logs + "\n" + getDataLog())
+                } else if (isExpertLogData) {
+                    myOutWriter.write(buildExpertLogText())
                 } else {
                     myOutWriter.write(getDataLog())
                 }
@@ -1530,6 +2382,17 @@ class IOPTestActivity : AppCompatActivity() {
         }
         characteristic.value = newValue
         Log.d(TAG, "writeValueToCharacteristic " + characteristic.uuid.toString())
+        postExpertLog(
+            category = "LOG",
+            title = getString(
+                R.string.iop_expert_log_writing,
+                activeExpertTestId(),
+                characteristic.uuid.toString(),
+                formatCharacteristicValue(newValue),
+                packetSizeOf(newValue)
+            ),
+            tone = "info"
+        )
 
         // Perform the write operation asynchronously
         val success = mBluetoothGatt?.writeCharacteristic(characteristic) ?: false
@@ -1567,6 +2430,17 @@ class IOPTestActivity : AppCompatActivity() {
         }
         characteristic.value = newValue
         Log.d(TAG, "writeValueToCharacteristic " + characteristic.uuid.toString())
+        postExpertLog(
+            category = "LOG",
+            title = getString(
+                R.string.iop_expert_log_writing,
+                activeExpertTestId(),
+                characteristic.uuid.toString(),
+                formatCharacteristicValue(newValue),
+                packetSizeOf(newValue)
+            ),
+            tone = "info"
+        )
         if (!mBluetoothGatt!!.writeCharacteristic(characteristic)) {
             Log.e(
                 TAG,
@@ -1593,6 +2467,15 @@ class IOPTestActivity : AppCompatActivity() {
      * Read values by characteristic
      */
     private fun readCharacteristic(characteristic: BluetoothGattCharacteristic?) {
+        postExpertLog(
+            category = "LOG",
+            title = getString(
+                R.string.iop_expert_log_reading,
+                activeExpertTestId(),
+                characteristicLabel(characteristic)
+            ),
+            tone = "info"
+        )
         mBluetoothGatt?.readCharacteristic(characteristic)
     }
 
@@ -1603,6 +2486,15 @@ class IOPTestActivity : AppCompatActivity() {
         mEndTimeDiscover = System.currentTimeMillis()
         val gattServices = gatt.services
         Log.d(TAG, "getServicesInfo(), Services count: " + gattServices.size)
+        postExpertLog(
+            category = "LOG",
+            title = getString(
+                R.string.iop_expert_log_discovered_services,
+                activeExpertTestId(),
+                gattServices.size
+            ),
+            tone = "info"
+        )
         var count = 0
         for (gattService: BluetoothGattService in gattServices) {
             val serviceUUID = gattService.uuid.toString()
@@ -1771,14 +2663,6 @@ class IOPTestActivity : AppCompatActivity() {
                 }
             }
 
-            POSITION_TEST_IOP3_THROUGHPUT -> {
-                mEndThroughputNotification = false
-                finishItemTest(
-                    POSITION_TEST_IOP3_THROUGHPUT,
-                    getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_THROUGHPUT]
-                )
-            }
-
             POSITION_TEST_IOP3_LE_PRIVACY -> {
                 return
                 /* finishItemTest(
@@ -1789,7 +2673,12 @@ class IOPTestActivity : AppCompatActivity() {
 
             POSITION_TEST_IOP3_SECURITY -> {
                 if (iopPhase3BondingStep == 2) {
+                    if (securityPendingReadIndex >= 0) {
+                        iopPhase3IndexStartChildrenTest = securityPendingReadIndex
+                    }
                     iopPhase3RunTestCaseSecurity(iopPhase3IndexStartChildrenTest, 0)
+                    clearSecurityBondRemovePending()
+                    isConnecting = false
                 } else {
                     iopPhase3RunTestCaseBonding(6)
                 }
@@ -1924,10 +2813,11 @@ class IOPTestActivity : AppCompatActivity() {
         pathFile.replace(" ", "")
         if (isLogcatData) {
             return "logcat" + "_" + getDate("EEE MMM dd HH_mm_ss z yyyy") + ".txt"
-
-        } else {
-            return pathFile + "_" + boardName + "_" + getDate("yyyy_MM_dd_HH_mm_ss") + ".txt"
         }
+        if (isExpertLogData) {
+            return "expert_log_" + getDate("yyyy_MM_dd_HH_mm_ss") + ".txt"
+        }
+        return pathFile + "_" + boardName + "_" + getDate("yyyy_MM_dd_HH_mm_ss") + ".txt"
     }
 
 
@@ -1952,6 +2842,8 @@ class IOPTestActivity : AppCompatActivity() {
                 type = "text/plain"
                 if (isLogcatData) {
                     putExtra(Intent.EXTRA_SUBJECT, "[Silabs] Application Debug log")
+                } else if (isExpertLogData) {
+                    putExtra(Intent.EXTRA_SUBJECT, "[Silabs] IOP Expert Step Log")
                 } else {
                     putExtra(Intent.EXTRA_SUBJECT, "[Silabs] Test log")
                 }
@@ -1982,10 +2874,10 @@ class IOPTestActivity : AppCompatActivity() {
             if (mIndexStartChildrenTest <= 17) {
                 mIndexStartChildrenTest += 1
                 runChildrenTestCase(mIndexStartChildrenTest)
-            } else {
-                return
             }
+            return
         }
+        logExpertChildTestStart(POSITION_TEST_SERVICE, index)
         var matchChar = -1
         for (i in uuids.indices) {
             if (cUuid.equals(uuids[i].toString(), ignoreCase = true)) {
@@ -2384,6 +3276,7 @@ class IOPTestActivity : AppCompatActivity() {
     private fun iopPhase3RunTestCaseSecurity(index: Int, isControl: Int) {
         iopPhase3IndexStartChildrenTest = index
         isConnecting = false
+        logExpertChildTestStart(POSITION_TEST_IOP3_SECURITY, index)
         val securityItem = getListChildrenItemTestCase(POSITION_TEST_IOP3_SECURITY)!![index]
         val cUuid = securityItem.characteristic?.uuid.toString()
         val uuids = CommonUUID.Characteristic.values()
@@ -2431,6 +3324,186 @@ class IOPTestActivity : AppCompatActivity() {
     }
 
 
+    /**
+     * IOP throughput gauge max is 1.5 Mbit/s; speed is in bit/s.
+     */
+    private fun iopThroughputProgressForSpeed(speedBitsPerSec: Int): Int {
+        return ((speedBitsPerSec / 1_500_000.0) * 100).toInt().coerceIn(0, 100)
+    }
+
+    private fun iopThroughputSpeedAsString(speedBitsPerSec: Int): String {
+        return if (speedBitsPerSec >= 1000000) {
+            String.format(Locale.US, "%.1f", speedBitsPerSec / 1000000.0)
+        } else {
+            String.format(Locale.US, "%.1f", speedBitsPerSec / 1000.0)
+        }
+    }
+
+    private fun iopThroughputUnitAsString(speedBitsPerSec: Int): String {
+        return if (speedBitsPerSec >= 1000000) "Mbps" else "kbps"
+    }
+
+    /**
+     * Recompute byte/s from totals so Done uses the same data the gauge displayed.
+     */
+    private fun recalculateFinalThroughputByteSpeed() {
+        if (mStartTimeThroughput <= 0) return
+        val elapsedMs = when {
+            mEndTimeThroughput > mStartTimeThroughput -> mEndTimeThroughput - mStartTimeThroughput
+            else -> System.currentTimeMillis() - mStartTimeThroughput
+        }.coerceAtLeast(1L)
+        mByteSpeed = ((mByteNumReceived * 1000L) / elapsedMs).toInt()
+        Log.d(
+            TAG,
+            "recalculateFinalThroughputByteSpeed mByteNumReceived=$mByteNumReceived elapsedMs=$elapsedMs mByteSpeed=$mByteSpeed"
+        )
+        updateThroughputSummaryLabels()
+    }
+
+    /**
+     * MTU: negotiated ATT MTU. Buffer: last notification payload size if seen, else max ATT payload (MTU − 3).
+     */
+    private fun updateThroughputDialogMtuBufferLabels() {
+        throughputDialogMtuText?.text =
+            getString(R.string.iop_throughput_dialog_mtu_size, mtu)
+        val bufferBytes =
+            if (mPDULength > 0) mPDULength else (mtu - 3).coerceAtLeast(0)
+        throughputDialogBufferText?.text =
+            getString(R.string.iop_throughput_dialog_buffer_size, bufferBytes)
+    }
+
+    private fun setThroughputMetricLabel(textView: TextView?, stringRes: Int, bitsPerSec: Int) {
+        textView?.apply {
+            visibility = View.VISIBLE
+            text = getString(
+                stringRes,
+                iopThroughputSpeedAsString(bitsPerSec),
+                iopThroughputUnitAsString(bitsPerSec)
+            )
+        }
+    }
+
+    private fun updateThroughputThresholdLabel() {
+        val bitsPerSec = calculateAcceptableThroughput() * 8
+        if (bitsPerSec <= 0) {
+            throughputDialogThresholdText?.visibility = View.GONE
+            return
+        }
+        setThroughputMetricLabel(
+            throughputDialogThresholdText,
+            R.string.iop_throughput_dialog_threshold,
+            bitsPerSec
+        )
+    }
+
+    private fun updateThroughputSummaryLabels() {
+        if (mEndTimeThroughput <= mStartTimeThroughput) {
+            throughputDialogPeakText?.visibility = View.GONE
+            throughputDialogAverageText?.visibility = View.GONE
+            return
+        }
+        setThroughputMetricLabel(
+            throughputDialogPeakText,
+            R.string.iop_throughput_dialog_peak,
+            mPeakBitsPerSec
+        )
+        setThroughputMetricLabel(
+            throughputDialogAverageText,
+            R.string.iop_throughput_dialog_average,
+            mByteSpeed * 8
+        )
+    }
+
+    private fun showThroughputSpeedDialog() {
+        if (isFinishing || isDestroyed) return
+        dismissThroughputSpeedDialog()
+        val content = LayoutInflater.from(this).inflate(R.layout.dialog_iop_throughput_speed, null)
+        val speedView = content.findViewById<SpeedView>(R.id.speed_view)
+        speedView.setUnitsArray(
+            arrayListOf(
+                "0",
+                "250kbps",
+                "500kbps",
+                "750kbps",
+                "1Mbit",
+                "1.25Mbit",
+                "1.5Mbit"
+            )
+        )
+        throughputSpeedView = speedView
+        throughputDialogMtuText = content.findViewById(R.id.tv_iop_throughput_mtu)
+        throughputDialogBufferText = content.findViewById(R.id.tv_iop_throughput_buffer)
+        throughputDialogPeakText = content.findViewById(R.id.tv_iop_throughput_peak)
+        throughputDialogAverageText = content.findViewById(R.id.tv_iop_throughput_average)
+        throughputDialogThresholdText = content.findViewById(R.id.tv_iop_throughput_threshold)
+        throughputDialogPeakText?.visibility = View.GONE
+        throughputDialogAverageText?.visibility = View.GONE
+        pendingThroughputDescriptorStatus = null
+        throughputDialogDoneButton = content.findViewById(R.id.btn_iop_throughput_done)
+        throughputDialogDoneButton?.setOnClickListener { onThroughputSpeedDialogDoneClicked() }
+        updateThroughputDialogMtuBufferLabels()
+        updateThroughputThresholdLabel()
+        throughputSpeedDialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setCancelable(false)
+            .create()
+        throughputSpeedDialog?.window?.apply {
+            val maxWidth = resources.getDimensionPixelSize(R.dimen.iop_throughput_dialog_max_width)
+            val screenWidth = (resources.displayMetrics.widthPixels * 0.88f).toInt()
+            setLayout(
+                minOf(screenWidth, maxWidth),
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            setBackgroundDrawableResource(android.R.color.transparent)
+        }
+        throughputSpeedDialog?.show()
+        isThroughputMeterActive = true
+        handler?.post(throughputMeterUpdateRunnable)
+    }
+
+    private fun startThroughputDialogAutoDismissTimer() {
+        handler?.removeCallbacks(throughputDialogAutoDismissRunnable)
+        handler?.postDelayed(throughputDialogAutoDismissRunnable, THROUGHPUT_DIALOG_AUTO_DISMISS_MS)
+    }
+
+    private fun dismissThroughputSpeedDialog() {
+        isThroughputMeterActive = false
+        handler?.removeCallbacks(throughputMeterUpdateRunnable)
+        handler?.removeCallbacks(throughputDialogAutoDismissRunnable)
+        throughputSpeedView = null
+        throughputDialogMtuText = null
+        throughputDialogBufferText = null
+        throughputDialogPeakText = null
+        throughputDialogAverageText = null
+        throughputDialogThresholdText = null
+        throughputDialogDoneButton = null
+        pendingThroughputDescriptorStatus = null
+        if (throughputSpeedDialog?.isShowing == true) {
+            throughputSpeedDialog?.dismiss()
+        }
+        throughputSpeedDialog = null
+    }
+
+    /**
+     * Continues the IOP test after the user clicks Done (or immediately when the
+     * dialog was already dismissed by a failure/destroy path).
+     */
+    private fun continueIopTestAfterThroughputDescriptorWrite(status: Int) {
+        dismissThroughputSpeedDialog()
+        throughputDescriptorWriteStatus = status
+        finishItemTest(
+            POSITION_TEST_IOP3_THROUGHPUT,
+            getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_THROUGHPUT]
+        )
+        throughputDescriptorWriteStatus = 0
+    }
+
+    private fun onThroughputSpeedDialogDoneClicked() {
+        val status = pendingThroughputDescriptorStatus ?: return
+        pendingThroughputDescriptorStatus = null
+        continueIopTestAfterThroughputDescriptorWrite(status)
+    }
+
     private fun iopPhase3RunTestCaseThroughput(isControl: Int) {
         Log.d(
             TAG,
@@ -2446,17 +3519,34 @@ class IOPTestActivity : AppCompatActivity() {
         } else {
             Log.d(TAG, "set Notification enable for Throughput")
             mEndThroughputNotification = false
+            mByteNumReceived = 0
+            mPDULength = 0
+            mPeakBitsPerSec = 0
             setNotificationForCharacteristic(
                 characteristicIOPPhase3Throughput,
                 Notifications.NOTIFY
             )
             mStartTimeThroughput = System.currentTimeMillis()
+            runOnUiThread { showThroughputSpeedDialog() }
             handler?.postDelayed({
                 mEndTimeThroughput = System.currentTimeMillis()
                 mByteSpeed =
                     ((mByteNumReceived * 1000) / (mEndTimeThroughput - mStartTimeThroughput)).toInt()
                 Log.d(TAG, "set Notification disable for throughput")
                 Log.d(TAG, "Throughput is $mByteSpeed Bytes/sec")
+                isThroughputMeterActive = false
+                handler?.removeCallbacks(throughputMeterUpdateRunnable)
+                val finalBitsPerSec = mByteSpeed * 8
+                runOnUiThread {
+                    throughputSpeedView?.updateSpeed(
+                        iopThroughputProgressForSpeed(finalBitsPerSec),
+                        iopThroughputSpeedAsString(finalBitsPerSec),
+                        iopThroughputUnitAsString(finalBitsPerSec),
+                        SpeedView.Mode.DOWNLOAD
+                    )
+                    updateThroughputDialogMtuBufferLabels()
+                    updateThroughputSummaryLabels()
+                }
                 disableThroughputNotificationWithRetries()
             }, 5000)
         }
@@ -2750,6 +3840,12 @@ class IOPTestActivity : AppCompatActivity() {
 
     private fun startOtaTestCase(index: Int) {
         Log.d(TAG, "startOtaTestCase $index")
+        val otaTestId = if (index == 0) "6.1" else "6.2"
+        postExpertLog(
+            category = "TEST",
+            title = getString(R.string.iop_expert_log_ota_start, otaTestId),
+            tone = "test"
+        )
         initOtaProgressDialog()
         otaLoadingDialog = OtaLoadingDialog(getString(R.string.iop_test_label_resetting))
 
@@ -2760,6 +3856,14 @@ class IOPTestActivity : AppCompatActivity() {
 
         when (getSiliconLabsTestInfo().firmwareVersion) {
             "3.2.1", "3.2.2", "3.2.3", "3.2.4" -> {
+                postExpertLog(
+                    category = "LOG",
+                    title = getString(
+                        R.string.iop_expert_log_ota_auto_file,
+                        if (index == 0) "6.1" else "6.2"
+                    ),
+                    tone = "info"
+                )
                 otaFileManager
                     ?.apply { uploadMode = OtaFileManager.UploadMode.AUTO }
                     ?.also {
@@ -2774,10 +3878,33 @@ class IOPTestActivity : AppCompatActivity() {
 
             else -> {
                 otaFileManager?.uploadMode = OtaFileManager.UploadMode.USER
-                otaFileSelectionDialog =
-                    OtaFileSelectionDialog(listener = fileSelectionListener).also {
-                        it.show(supportFragmentManager, "ota_file_selection_dialog")
-                    }
+                if (isExpertMode()) {
+                    postExpertLog(
+                        category = "LOG",
+                        title = getString(
+                            R.string.iop_expert_log_ota_pick_file,
+                            if (index == 0) "6.1" else "6.2"
+                        ),
+                        tone = "info"
+                    )
+                    pendingExpertOtaAutoContinue = true
+                    Intent(Intent.ACTION_GET_CONTENT)
+                        .apply { type = "*/*" }
+                        .also {
+                            startActivityForResult(
+                                Intent.createChooser(
+                                    it,
+                                    getString(R.string.ota_choose_file)
+                                ),
+                                GBL_FILE_CHOICE_REQUEST_CODE
+                            )
+                        }
+                } else {
+                    otaFileSelectionDialog =
+                        OtaFileSelectionDialog(listener = fileSelectionListener).also {
+                            it.show(supportFragmentManager, "ota_file_selection_dialog")
+                        }
+                }
             }
         }
 
@@ -2899,6 +4026,7 @@ class IOPTestActivity : AppCompatActivity() {
                         Log.d("Instance ID", "" + charac.instanceId)
 
                         pack = 0
+                        logExpertOtaPacketSize(reliable)
 
                         //Set info into UI OTA Progress
                         runOnUiThread {
@@ -2925,6 +4053,7 @@ class IOPTestActivity : AppCompatActivity() {
                 Log.d(TAG, "OTAEND Called")
                 ota_alreadyIn_Progress = false
                 isInAppOTA = false
+                logExpertOtaComplete()
                 handler?.postDelayed({ writeOtaControl(0x03.toByte()) }, 1000)
             }
 
@@ -2992,12 +4121,17 @@ class IOPTestActivity : AppCompatActivity() {
      */
     private fun refreshServices() {
         if (!isInAppOTA) {
-            if (mBluetoothGatt != null && mBluetoothGatt?.device != null) {
+            if (mBluetoothGatt != null && mBluetoothGatt?.device != null && isConnected) {
                 refreshDeviceCache()
-                mBluetoothGatt?.discoverServices()
+                if (!startGattServiceDiscovery("refreshServices")) {
+                    scheduleBondedServiceDiscoveryRetry()
+                }
             } else if (mBluetoothService != null && mBluetoothService?.connectedGatt != null) {
+                mBluetoothGatt = mBluetoothService?.connectedGatt
                 refreshDeviceCache()
-                mBluetoothService?.connectedGatt?.discoverServices()
+                if (!startGattServiceDiscovery("refreshServices-viaService")) {
+                    scheduleBondedServiceDiscoveryRetry()
+                }
             }
         }
     }
@@ -3073,6 +4207,8 @@ class IOPTestActivity : AppCompatActivity() {
                 mtuDivisible = mtu - 3 - minus
                 minus++
             } while (mtuDivisible % 4 != 0)
+            otaPacketSizeWithAck = mtuDivisible
+            currentOtaPacketSize = mtuDivisible
         }
         val writearray: ByteArray
         val pgss: Float
@@ -3141,13 +4277,16 @@ class IOPTestActivity : AppCompatActivity() {
     @Synchronized
     fun writeOtaData(dataThread: ByteArray?) {
         try {
-            val value = ByteArray(mtu - 3)
+            val packetSize = (mtu - 3).coerceAtLeast(0)
+            otaPacketSizeWithoutAck = packetSize
+            currentOtaPacketSize = packetSize
+            val value = ByteArray(packetSize)
             val start = System.nanoTime()
             var j = 0
             for (i in dataThread!!.indices) {
                 value[j] = dataThread[i]
                 j++
-                if (j >= mtu - 3 || i >= (dataThread.size - 1)) {
+                if (j >= packetSize || i >= (dataThread.size - 1)) {
                     var wait = System.nanoTime()
                     val charac =
                         mBluetoothGatt?.getService(ota_service)?.getCharacteristic(ota_data)
@@ -3155,7 +4294,7 @@ class IOPTestActivity : AppCompatActivity() {
                     val progress = ((i + 1).toFloat() / dataThread.size) * 100
                     val bitrate =
                         (((i + 1) * (8.0)).toFloat() / (((wait - start) / 1000000.0).toFloat()))
-                    if (j < mtu - 3) {
+                    if (j < packetSize) {
                         val end = ByteArray(j)
                         System.arraycopy(value, 0, end, 0, j)
                         Log.d(
@@ -3297,9 +4436,17 @@ class IOPTestActivity : AppCompatActivity() {
             when (newState) {
                 BluetoothGatt.STATE_CONNECTED -> {
                     Log.d(TAG, "onConnectionStateChange connected")
+                    postExpertLog(
+                        category = "LOG",
+                        title = getString(R.string.iop_expert_log_connected, activeExpertTestId()),
+                        tone = "success"
+                    )
+                    mBluetoothGatt = gatt
                     handler?.removeCallbacks(connectionRunnable)
                     isConnected = true
-                    isTestFinished = false
+                    if (isTestRunning) {
+                        isTestFinished = false
+                    }
                     if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_CONNECTION].getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING) {
                         Log.d(TAG, "onConnectionStateChange POSITION_TEST_CONNECTION")
                         finishItemTest(
@@ -3313,22 +4460,51 @@ class IOPTestActivity : AppCompatActivity() {
                                 "onConnectionStateChange connected mIndexRunning $mIndexRunning"
                             )
                             mBluetoothGatt?.requestMtu(247)
-                            handler?.postDelayed({
-                                if (isConnected && mIndexRunning == 8) {
+                            if (securityAwaitingReadAfterBondRemove
+                                && !securityWaitingForFirmwareDisconnect
+                                && mIndexRunning == POSITION_TEST_IOP3_SECURITY
+                                && isTestRunning
+                                && !isTestFinished
+                                && gatt.device.bondState == BluetoothDevice.BOND_BONDED
+                            ) {
+                                handler?.postDelayed({
+                                    if (isTestFinished || !isTestRunning || !securityAwaitingReadAfterBondRemove) {
+                                        return@postDelayed
+                                    }
+                                    Log.d(TAG, "security reconnect: device already bonded, discovering services")
+                                    if (!startGattServiceDiscovery("securityReconnectAlreadyBonded")) {
+                                        scheduleBondedServiceDiscoveryRetry()
+                                    }
+                                }, BOND_COMPLETE_DISCOVERY_DELAY_MS)
+                            }
+                            if (mIndexRunning == POSITION_TEST_IOP3_LE_PRIVACY
+                                && isTestRunning
+                                && !isTestFinished
+                                && !endOfTestCleanupPerformed
+                            ) {
+                                handler?.postDelayed({
+                                    if (!isTestRunning
+                                        || isTestFinished
+                                        || endOfTestCleanupPerformed
+                                        || !isConnected
+                                        || mIndexRunning != POSITION_TEST_IOP3_LE_PRIVACY
+                                    ) {
+                                        return@postDelayed
+                                    }
                                     Log.d(
                                         TAG,
-                                        "onConnectionStateChange connected mIndexRunningis 8"
+                                        "onConnectionStateChange: LE Privacy test complete"
                                     )
                                     isTestRunning = false
                                     isTestFinished = true
-
+                                    cancelPendingIopBluetoothWork()
                                     getItemTestCaseInfo(POSITION_TEST_IOP3_LE_PRIVACY).setStatusTest(
                                         Common.IOP3_TC_STATUS_PASS
                                     )
                                     runOnUiThread { updateUIFooter(isTestRunning) }
                                     mListener?.updateUi()
-                                }
-                            }, CONNECTION_PERIOD)
+                                }, CONNECTION_PERIOD)
+                            }
 
                         } else { //After OTA process started
                             //get information
@@ -3372,60 +4548,88 @@ class IOPTestActivity : AppCompatActivity() {
 
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.d(TAG, "Disconnected IOP Test device: " + System.currentTimeMillis())
+                    postExpertLog(
+                        category = "LOG",
+                        title = getString(R.string.iop_expert_log_disconnected, activeExpertTestId()),
+                        tone = "warning"
+                    )
                     isConnected = false
+                    gattDiscoveryInProgress = false
                     discoverTimeout = false
-                    exit(mBluetoothGatt)
-                    if (status != 0 && otaMode) {
-                        if (status == 133) {
-                            //reconnect after 30 seconds
-                            handler?.postDelayed({
-                                Log.d(TAG, "onConnectionStateChange OTA status $status")
-                                retryIOP3Failed(mIndexRunning, countReTest++)
-                            }, 30000)
+
+                    if (securityWaitingForFirmwareDisconnect
+                        && securityAwaitingReadAfterBondRemove
+                        && mIndexRunning == POSITION_TEST_IOP3_SECURITY
+                        && isTestRunning
+                        && !isTestFinished
+                        && !endOfTestCleanupPerformed
+                    ) {
+                        handler?.removeCallbacks(securityFirmwareDisconnectTimeoutRunnable)
+                        securityWaitingForFirmwareDisconnect = false
+                        isConnecting = true
+                        mBluetoothDevice = mBluetoothDevice ?: gatt.device
+                        mDeviceAddress = mBluetoothDevice?.address ?: mDeviceAddress
+                        try {
+                            mBluetoothGatt?.close()
+                        } catch (_: Exception) {
                         }
+                        mBluetoothGatt = null
+                        mBluetoothService?.clearConnectedGatt()
+                        onSecurityLinkDownProceedWithBondRemove()
                     } else {
-                        if (!otaProcess && !isTestFinished) {
-                            Log.d(
-                                TAG,
-                                "onConnectionStateChange ota_process $otaProcess,isConnecting $isConnecting"
-                            )
-                            if (mIndexRunning > POSITION_TEST_IOP3_OTA_WITHOUT_ACK || mIndexRunning < POSITION_TEST_IOP3_OTA_ACK) {
-                                if (!isConnecting) {
-                                    isConnecting = true
-                                    handler?.postDelayed({
-                                        Log.d(TAG, "onConnectionStateChange re-connecting")
-                                        retryIOP3Failed(mIndexRunning, countReTest++)
-                                    }, 5000)
-                                }
-                            } else {
-                                if (status == 133 || status == 8) {
+                        exit(mBluetoothGatt)
+                        if (status != 0 && otaMode) {
+                            if (status == 133) {
+                                //reconnect after 30 seconds
+                                handler?.postDelayed({
+                                    Log.d(TAG, "onConnectionStateChange OTA status $status")
+                                    retryIOP3Failed(mIndexRunning, countReTest++)
+                                }, 30000)
+                            }
+                        } else {
+                            if (!otaProcess && !isTestFinished) {
+                                Log.d(
+                                    TAG,
+                                    "onConnectionStateChange ota_process $otaProcess,isConnecting $isConnecting"
+                                )
+                                if (mIndexRunning > POSITION_TEST_IOP3_OTA_WITHOUT_ACK || mIndexRunning < POSITION_TEST_IOP3_OTA_ACK) {
                                     if (!isConnecting) {
                                         isConnecting = true
                                         handler?.postDelayed({
-                                            Log.d(TAG, "onConnectionStateChange status: $status")
+                                            Log.d(TAG, "onConnectionStateChange re-connecting")
                                             retryIOP3Failed(mIndexRunning, countReTest++)
-                                        }, 30000)
+                                        }, 5000)
+                                    }
+                                } else {
+                                    if (status == 133 || status == 8) {
+                                        if (!isConnecting) {
+                                            isConnecting = true
+                                            handler?.postDelayed({
+                                                Log.d(TAG, "onConnectionStateChange status: $status")
+                                                retryIOP3Failed(mIndexRunning, countReTest++)
+                                            }, 30000)
+                                        }
                                     }
                                 }
+                            } else {
+                                if (status == 133) {
+                                    handler?.postDelayed({
+                                        Log.d(TAG, "onConnectionStateChange OTA status: $status")
+                                        if (!isTestFinished) {
+                                            retryIOP3Failed(mIndexRunning, countReTest++)
+                                        }
+                                    }, 30000)
+                                }
                             }
-                        } else {
-                            if (status == 133) {
-                                handler?.postDelayed({
-                                    Log.d(TAG, "onConnectionStateChange OTA status: $status")
-                                    if(!isTestFinished) {
-                                        retryIOP3Failed(mIndexRunning, countReTest++)
-                                    }
-                                }, 30000)
+                            if (disconnectGatt) {
+                                exit(gatt)
                             }
-                        }
-                        if (disconnectGatt) {
-                            exit(gatt)
-                        }
-                        if (gatt.services.isEmpty()) {
-                            exit(gatt)
-                        }
-                        if (!boolOTAbegin && !otaProcess) {
-                            exit(gatt)
+                            if (gatt.services.isEmpty()) {
+                                exit(gatt)
+                            }
+                            if (!boolOTAbegin && !otaProcess) {
+                                exit(gatt)
+                            }
                         }
                     }
                 }
@@ -3442,17 +4646,38 @@ class IOPTestActivity : AppCompatActivity() {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             super.onServicesDiscovered(gatt, status)
+            gattDiscoveryInProgress = false
             gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
             Log.d(TAG, "onServicesDiscovered(), status " + Integer.toHexString(status))
             if (mBluetoothGatt != gatt) {
                 mBluetoothGatt = gatt
-                handler?.postDelayed({
-                    refreshServices()
-                    mBluetoothGatt?.readPhy()
-                }, 2000)
+                if (securityAwaitingReadAfterBondRemove
+                    && mIndexRunning == POSITION_TEST_IOP3_SECURITY
+                    && status == BluetoothGatt.GATT_SUCCESS
+                    && isTestRunning
+                    && !isTestFinished
+                ) {
+                    discoverTimeout = false
+                    runnable(gatt)
+                } else {
+                    handler?.postDelayed({
+                        refreshServices()
+                        mBluetoothGatt?.readPhy()
+                    }, 2000)
+                }
             } else {
                 discoverTimeout = false
                 if (status != 0) {
+                    if (securityAwaitingReadAfterBondRemove
+                        && securityPendingControlByte == IOP_SECURITY_CONTROL_BONDING
+                        && isTestRunning
+                        && !isTestFinished
+                    ) {
+                        Log.w(TAG, "onServicesDiscovered failed after 0x03; reconnecting")
+                        isConnecting = true
+                        reconnect(BOND_REMOVE_DELAY_MS + BOND_RECONNECT_EXTRA_DELAY_MS)
+                        return
+                    }
                     runOnUiThread {
                         /*Toast.makeText(
                             baseContext,
@@ -3521,6 +4746,19 @@ class IOPTestActivity : AppCompatActivity() {
                 TAG,
                 "onCharacteristicRead: " + characteristic.uuid.toString() + " status " + status
             )
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                postExpertLog(
+                    category = "LOG",
+                    title = getString(
+                        R.string.iop_expert_log_read_result,
+                        activeExpertTestId(),
+                        characteristic.uuid.toString(),
+                        formatCharacteristicValue(characteristic.value),
+                        packetSizeOf(characteristic.value)
+                    ),
+                    tone = if (status == 0) "success" else "failure"
+                )
+            }
 
             if (characteristic.uuid == GattCharacteristic.ModelNumberString.uuid) {
                 getSiliconLabsTestInfo().iopBoard =
@@ -3601,6 +4839,18 @@ class IOPTestActivity : AppCompatActivity() {
             super.onCharacteristicWrite(gatt, characteristic, status)
             Log.d(TAG, "onCharacteristicWrite: " + characteristic.uuid.toString())
             Log.d(TAG, "onCharacteristicWrite: $status")
+            if (!otaProcess && status == BluetoothGatt.GATT_SUCCESS) {
+                postExpertLog(
+                    category = "LOG",
+                    title = getString(
+                        R.string.iop_expert_log_write_result,
+                        activeExpertTestId(),
+                        characteristic.uuid.toString(),
+                        packetSizeOf(characteristic.value)
+                    ),
+                    tone = "success"
+                )
+            }
             if (!otaProcess) {
                 updateDataTest(characteristic, 1, status)
                 checkNextTestCase(characteristic, 2)
@@ -3714,6 +4964,17 @@ class IOPTestActivity : AppCompatActivity() {
                 TAG,
                 "onCharacteristicChanged: " + characteristic.uuid.toString() + " len:" + characteristic.value.size
             )
+            postExpertLog(
+                category = "LOG",
+                title = getString(
+                    R.string.iop_expert_log_notification_received,
+                    activeExpertTestId(),
+                    characteristic.uuid.toString(),
+                    formatCharacteristicValue(characteristic.value),
+                    packetSizeOf(characteristic.value)
+                ),
+                tone = "info"
+            )
             updateDataTest(characteristic, -1, -1)
             checkNextTestCase(characteristic, 0)
             // type 1: CharacteristicRead, 2:CharacteristicWrite, 0:Notify
@@ -3759,15 +5020,19 @@ class IOPTestActivity : AppCompatActivity() {
                 runChildrenTestCase(mIndexStartChildrenTest)
             } else if (mEndThroughputNotification) {
                 mEndThroughputNotification = false
-                if (status == 0) {
-                    finishItemTest(
-                        POSITION_TEST_IOP3_THROUGHPUT,
-                        getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_THROUGHPUT]
-                    )
-                } else if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_LE_PRIVACY]
-                        .getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING
-                ) {
-                    iopPhase3RunTestCaseLEPrivacy(1)
+                if (throughputSpeedDialog != null) {
+                    pendingThroughputDescriptorStatus = status
+                    runOnUiThread {
+                        if (!isFinishing && !isDestroyed) {
+                            throughputDialogDoneButton?.isEnabled = true
+                            startThroughputDialogAutoDismissTimer()
+                        } else {
+                            pendingThroughputDescriptorStatus = null
+                            continueIopTestAfterThroughputDescriptorWrite(status)
+                        }
+                    }
+                } else {
+                    runOnUiThread { continueIopTestAfterThroughputDescriptorWrite(status) }
                 }
                 /*} else if (getSiliconLabsTestInfo().listItemTest[POSITION_TEST_IOP3_CACHING]
                 .getStatusTest() == Common.IOP3_TC_STATUS_PROCESSING) {
@@ -3815,7 +5080,12 @@ class IOPTestActivity : AppCompatActivity() {
                 BluetoothDevice.PHY_LE_1M_MASK,
                 BluetoothDevice.PHY_OPTION_NO_PREFERRED
             )
-            if (mIndexRunning == POSITION_TEST_DISCOVER_SERVICE || mIndexRunning == POSITION_TEST_IOP3_THROUGHPUT || mIndexRunning == POSITION_TEST_IOP3_LE_PRIVACY || (mIndexRunning == POSITION_TEST_IOP3_SECURITY && iopPhase3BondingStep > 2)) {
+            val skipServiceRefreshDuringThroughput =
+                mIndexRunning == POSITION_TEST_IOP3_THROUGHPUT &&
+                    (isThroughputMeterActive || throughputSpeedDialog != null)
+            if (skipServiceRefreshDuringThroughput) {
+                Log.d(TAG, "onMtuChanged during throughput measurement, skipping service refresh")
+            } else if (mIndexRunning == POSITION_TEST_DISCOVER_SERVICE || mIndexRunning == POSITION_TEST_IOP3_THROUGHPUT || mIndexRunning == POSITION_TEST_IOP3_LE_PRIVACY || (mIndexRunning == POSITION_TEST_IOP3_SECURITY && iopPhase3BondingStep > 2)) {
                 mListCharacteristics.clear()
                 characteristicsPhase3Security.clear()
                 characteristicIOPPhase3Control = null
@@ -3917,6 +5187,7 @@ class IOPTestActivity : AppCompatActivity() {
 
         private const val THROUGHPUT_NOTIFICATION_DISABLE_MAX_ATTEMPTS = 3
         private const val THROUGHPUT_NOTIFICATION_DISABLE_RETRY_DELAY_MS = 200L
+        private const val THROUGHPUT_DIALOG_AUTO_DISMISS_MS = 10_000L
 
         private val ota_service = UUID.fromString("1d14d6ee-fd63-4fa1-bfa4-8f47b42119f0")
         private val ota_data = UUID.fromString("984227f3-34fc-4045-a5d0-2c581f81a153")
@@ -3949,11 +5220,26 @@ class IOPTestActivity : AppCompatActivity() {
 
         private const val SCAN_PERIOD: Long = 20000
         /** Delay after [BluetoothDevice.removeBond] before continuing the test so bond clears. */
-        private const val BOND_REMOVE_DELAY_MS = 1500L
+        private const val BOND_REMOVE_DELAY_MS = 3000L
+        /** Wait for the GATT link to stabilize after pairing before starting service discovery. */
+        private const val BOND_COMPLETE_DISCOVERY_DELAY_MS = 3500L
+        /** Back-off between bonded service-discovery retries when the link is not ready yet. */
+        private const val BOND_DISCOVERY_RETRY_STEP_MS = 800L
+        /** Extra delay before reconnecting after bond removal. */
+        private const val BOND_RECONNECT_EXTRA_DELAY_MS = 1000L
+        /** Max wait for firmware to disconnect after security control 0x02/0x03 before forcing it. */
+        private const val SECURITY_FIRMWARE_DISCONNECT_TIMEOUT_MS = 8000L
+        /** IOP Phase-3 control characteristic security byte for authentication sub-test. */
+        private const val IOP_SECURITY_CONTROL_AUTHENTICATION = 2
+        /** IOP Phase-3 control characteristic security byte for bonding sub-test. */
+        private const val IOP_SECURITY_CONTROL_BONDING = 3
         private const val CONNECTION_PERIOD: Long = 10000
         private const val BLUETOOTH_SETTINGS_REQUEST_CODE = 100
 
         const val GBL_FILE_CHOICE_REQUEST_CODE = 201
+
+        private const val TAB_STANDARD = 0
+        private const val TAB_EXPERT = 1
 
         fun startActivity(context: Context) {
             val intent = Intent(context, IOPTestActivity::class.java)
@@ -3962,6 +5248,7 @@ class IOPTestActivity : AppCompatActivity() {
     }
 
     private fun releaseIopBluetoothResources() {
+        cancelPendingIopBluetoothWork()
         mBluetoothService?.unregisterGattCallback()
         try {
             mBluetoothGatt?.disconnect()

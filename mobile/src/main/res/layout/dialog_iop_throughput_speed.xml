@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/dialog_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="12dp">
+
+        <FrameLayout
+            android:layout_width="@dimen/iop_throughput_gauge_size"
+            android:layout_height="@dimen/iop_throughput_gauge_size"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:minHeight="0dp"
+            android:minWidth="0dp">
+
+            <com.siliconlabs.bledemo.features.demo.throughput.views.SpeedView
+                android:id="@+id/speed_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="8dp"
+                app:useBleThroughputSpeedRing="true" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_iop_throughput_mtu"
+            style="@style/dialog_text_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/stolzl_medium"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="16dp"
+            tools:text="MTU size: 247 bytes" />
+
+        <TextView
+            android:id="@+id/tv_iop_throughput_buffer"
+            style="@style/dialog_text_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/stolzl_medium"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="16dp"
+            tools:text="Buffer size: 244 bytes" />
+
+        <TextView
+            android:id="@+id/tv_iop_throughput_peak"
+            style="@style/dialog_text_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/stolzl_medium"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone"
+            tools:text="Peak throughput: 264.2 kbps"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tv_iop_throughput_average"
+            style="@style/dialog_text_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/stolzl_medium"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone"
+            tools:text="Average throughput: 189.8 kbps"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tv_iop_throughput_threshold"
+            style="@style/dialog_text_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/stolzl_medium"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone"
+            tools:text="Target throughput threshold: 56.0 kbps"
+            tools:visibility="visible" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_iop_throughput_done"
+            style="@style/dialog_button_positive_action"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:text="@string/done" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

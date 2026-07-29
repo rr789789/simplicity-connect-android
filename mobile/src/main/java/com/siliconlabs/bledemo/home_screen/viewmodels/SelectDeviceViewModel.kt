@@ -128,10 +128,9 @@ class SelectDeviceViewModel : ScannerViewModel() {
             if (connectType != null && connectType == BluetoothService.GattConnectType.IOP_TEST) {
                 if (deviceName != null) {
                     if (context != null) {
-                        if (!deviceName.startsWith(
-                                "IOP",
-                                ignoreCase = true
-                            )
+                        val matchesIopName = deviceName.startsWith("IOP_Test", ignoreCase = true)
+                            || deviceName.startsWith("IOP Test", ignoreCase = true)
+                        if (!matchesIopName
                             && !matchesManufacturerData(result, manufacturerDataFilter)
                         ) {
                             shouldAddDevice = false
