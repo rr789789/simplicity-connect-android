@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/industrial_background" android:orientation="vertical">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp" android:background="@color/industrial_surface" app:navigationIcon="@drawable/ic_back" android:title="设置" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/mineMode" android:layout_width="match_parent" android:layout_height="56dp" android:text="井下高对比模式" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="扫描信号阈值" android:textColor="@color/industrial_ink" android:textStyle="bold" />
+        <TextView android:id="@+id/rssiValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="-100 dBm" android:textColor="@color/industrial_muted" />
+        <SeekBar android:id="@+id/rssiSlider" android:layout_width="match_parent" android:layout_height="48dp" android:max="65" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/changePassword" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="修改维护密码" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/exportDiagnostics" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="导出工业调试包" />
+        <TextView android:id="@+id/version" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:gravity="center" android:textColor="@color/industrial_muted" />
+    </LinearLayout>
+</LinearLayout>

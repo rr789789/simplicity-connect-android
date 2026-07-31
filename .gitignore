@@ -3,6 +3,10 @@ libraries/materialdesign/~
 wear/~
 .gradle
 .idea/
+**/build/
+Builds/
 *.iml
 /local.properties
 *.DS_Store
+*.jks
+*.keystore

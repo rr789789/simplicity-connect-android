@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/industrial_background" android:orientation="vertical">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp"
+        android:background="@color/industrial_surface" app:navigationIcon="@drawable/ic_back" app:menu="@menu/device_menu" android:titleTextColor="@color/industrial_ink" />
+    <LinearLayout android:id="@+id/statusBar" android:layout_width="match_parent" android:layout_height="64dp" android:background="@color/industrial_ink"
+        android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp">
+        <TextView android:id="@+id/statusIcon" android:layout_width="28dp" android:layout_height="wrap_content" android:text="●" android:textColor="@color/industrial_amber" android:textSize="18sp" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/statusTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="连接中" android:textColor="@android:color/white" android:textStyle="bold" />
+            <TextView android:id="@+id/statusDetail" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#C8D0D5" android:textSize="12sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/rssi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- dBm" android:textColor="@android:color/white" android:textStyle="bold" />
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+            <LinearLayout android:id="@+id/summary" android:layout_width="match_parent" android:layout_height="76dp" android:background="@color/industrial_surface" android:gravity="center" android:orientation="horizontal">
+                <TextView android:id="@+id/primaryValue" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="等待数据" android:textColor="@color/industrial_ink" android:textSize="26sp" android:textStyle="bold" />
+                <TextView android:id="@+id/secondaryValue" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="-- V" android:textColor="@color/industrial_muted" android:textSize="18sp" />
+            </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/slotList" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="10dp" android:nestedScrollingEnabled="false" />
+            <LinearLayout android:id="@+id/sensorPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                android:background="@color/industrial_surface" android:orientation="vertical" android:padding="14dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="传感器状态" android:textColor="@color/industrial_ink" android:textStyle="bold" />
+                <TextView android:id="@+id/sensorInfo" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:lineSpacingExtra="4dp" android:text="等待设备信息" android:textColor="@color/industrial_muted" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/slowRate" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="慢速 1s" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/fastRate" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="快速 100ms" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/maintenancePanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                android:background="@color/industrial_surface" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="维护操作" android:textColor="@color/industrial_ink" android:textStyle="bold" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/readConfig" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="读取/验收" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/editBindings" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="绑定管理" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/powerMode" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="切换功耗" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/markZero" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="当前位置置零" />
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/ota" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="选择GBL并升级" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/danger" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="休眠 / 修改MAC / 清除" android:textColor="@color/industrial_red" app:strokeColor="@color/industrial_red" />
+            </LinearLayout>
+            <com.google.android.material.button.MaterialButton android:id="@+id/maintainer" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="进入维护模式" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
