@@ -32,7 +32,8 @@ object AcceptanceReport {
         }.toString(2))
 
         val pdf = File(dir, "$base.pdf")
-        PdfDocument().use { document ->
+        val document = PdfDocument()
+        try {
             val page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
             val canvas = page.canvas
             val title = Paint().apply { textSize = 22f; isFakeBoldText = true }
@@ -46,6 +47,8 @@ object AcceptanceReport {
                 canvas.drawText("槽${slot.slot + 1}  ${slot.binding?.mac ?: "--"}  $result", 40f, y, text); y += 25f
             }
             document.finishPage(page); pdf.outputStream().use(document::writeTo)
+        } finally {
+            document.close()
         }
         return listOf(pdf, json)
     }
