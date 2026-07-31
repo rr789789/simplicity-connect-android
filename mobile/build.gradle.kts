@@ -8,7 +8,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.zg.sensormonitor"
+        applicationId = "com.zg.sonsrmonitor"
         minSdk = 30
         targetSdk = 36
         versionCode = 100

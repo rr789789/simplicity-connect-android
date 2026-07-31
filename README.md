@@ -21,4 +21,4 @@ Release构建需要配置以下仓库Secrets：
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-正式包名为 `com.zg.sensormonitor`，Debug包名为 `com.zg.sensormonitor.debug`。
+正式包名为 `com.zg.sonsrmonitor`，Debug包名为 `com.zg.sonsrmonitor.debug`。

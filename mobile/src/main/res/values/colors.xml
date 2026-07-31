@@ -1,0 +1,14 @@
+<resources>
+    <color name="industrial_green">#137A4B</color>
+    <color name="industrial_green_dark">#0B5233</color>
+    <color name="industrial_amber">#B86A00</color>
+    <color name="industrial_red">#B42318</color>
+    <color name="industrial_ink">#17202A</color>
+    <color name="industrial_muted">#5F6B76</color>
+    <color name="industrial_surface">#FFFFFF</color>
+    <color name="industrial_background">#F3F5F6</color>
+    <color name="industrial_line">#D6DBDF</color>
+    <color name="mine_background">#080B0D</color>
+    <color name="mine_surface">#12171A</color>
+    <color name="mine_text">#F5F7F8</color>
+</resources>

@@ -10,3 +10,5 @@ Builds/
 *.DS_Store
 *.jks
 *.keystore
+.signing/
+.tools/

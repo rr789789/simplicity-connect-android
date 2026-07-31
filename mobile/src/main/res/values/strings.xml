@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">矿用传感器监测</string>
+    <string name="scan">扫描</string>
+    <string name="stop">停止</string>
+    <string name="settings">设置</string>
+    <string name="search_hint">搜索名称或 MAC</string>
+    <string name="no_devices">未发现支持的设备</string>
+    <string name="permission_required">需要蓝牙权限才能扫描和连接设备</string>
+</resources>

@@ -14,16 +14,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: gradle/actions/setup-gradle@v6
       - name: Install Android API 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Grant execute permission
@@ -35,7 +33,7 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew :mobile:assembleDebug --stacktrace
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mine-sensor-monitor-debug-${{ github.sha }}
           path: mobile/build/outputs/apk/debug/*.apk
@@ -51,16 +49,14 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: gradle/actions/setup-gradle@v6
       - name: Install Android API 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Validate signing secrets
@@ -88,7 +84,7 @@ jobs:
       - name: Generate checksum
         run: sha256sum mobile/build/outputs/apk/release/*.apk > mine-sensor-monitor-sha256.txt
       - name: Upload Release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mine-sensor-monitor-${{ github.ref_name }}
           path: |
