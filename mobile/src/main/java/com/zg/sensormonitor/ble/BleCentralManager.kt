@@ -151,12 +151,16 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         val type = if (withResponse) BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
         if (!withResponse) {
             val status = if (Build.VERSION.SDK_INT >= 33) current.writeCharacteristic(ch, value, type)
-            else { ch.writeType = type; ch.value = value; if (current.writeCharacteristic(ch)) GATT_INIT_SUCCESS else -1 }
-            if (status != GATT_INIT_SUCCESS) throw BleException("写入启动失败($status)")
+            else {
+                ch.writeType = type
+                ch.value = value
+                if (current.writeCharacteristic(ch)) BluetoothStatusCodes.SUCCESS else BluetoothStatusCodes.ERROR_UNKNOWN
+            }
+            if (status != BluetoothStatusCodes.SUCCESS) throw BleException("写入启动失败($status)")
             return@withLock value
         }
         awaitOperation(characteristic) {
-            if (Build.VERSION.SDK_INT >= 33) current.writeCharacteristic(ch, value, type) == GATT_INIT_SUCCESS
+            if (Build.VERSION.SDK_INT >= 33) current.writeCharacteristic(ch, value, type) == BluetoothStatusCodes.SUCCESS
             else { ch.writeType = type; ch.value = value; current.writeCharacteristic(ch) }
         }
     }
@@ -173,7 +177,7 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         val value = if (ch.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0)
             BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         awaitOperation(characteristic) {
-            if (Build.VERSION.SDK_INT >= 33) current.writeDescriptor(descriptor, value) == GATT_INIT_SUCCESS
+            if (Build.VERSION.SDK_INT >= 33) current.writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS
             else { descriptor.value = value; current.writeDescriptor(descriptor) }
         }
     }
@@ -351,7 +355,6 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
     companion object {
         private const val OPERATION_TIMEOUT_MS = 4000L
         private const val STALE_MS = 5000L
-        private const val GATT_INIT_SUCCESS = 0
     }
 }
 
