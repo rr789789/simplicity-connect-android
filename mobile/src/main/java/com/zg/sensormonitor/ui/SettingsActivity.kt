@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.zg.sensormonitor.BuildConfig
+import com.zg.sensormonitor.R
 import com.zg.sensormonitor.SensorMonitorApplication
 import com.zg.sensormonitor.data.PasswordResult
 import com.zg.sensormonitor.databinding.ActivitySettingsBinding
