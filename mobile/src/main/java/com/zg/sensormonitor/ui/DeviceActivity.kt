@@ -8,7 +8,6 @@ import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -30,7 +29,7 @@ import kotlinx.coroutines.*
 import android.os.Handler
 import android.os.Looper
 
-class DeviceActivity : AppCompatActivity(), BleCentralManager.Listener {
+class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private lateinit var binding: ActivityDeviceBinding
     private val app get() = application as SensorMonitorApplication
     private lateinit var device: DiscoveredDevice
@@ -99,7 +98,6 @@ class DeviceActivity : AppCompatActivity(), BleCentralManager.Listener {
         binding.danger.setOnClickListener { showDangerActions() }
         binding.ota.setOnClickListener { chooseOtaSource() }
         binding.maintainer.setOnClickListener { if (maintenance) leaveMaintenance() else requestMaintenance() }
-        applyMineMode()
     }
 
     override fun onStart() {
@@ -115,8 +113,8 @@ class DeviceActivity : AppCompatActivity(), BleCentralManager.Listener {
     override fun onPhase(phase: LinkPhase, message: String?) {
         binding.statusTitle.text = phaseText(phase)
         binding.statusDetail.text = message ?: "${device.address} · ${lastDataText()}"
-        val color = when (phase) { LinkPhase.ONLINE -> R.color.industrial_green; LinkPhase.STALE, LinkPhase.RECONNECTING, LinkPhase.CONNECTING, LinkPhase.DISCOVERING, LinkPhase.SUBSCRIBING, LinkPhase.DFU -> R.color.industrial_amber; LinkPhase.FAULT -> R.color.industrial_red; else -> R.color.industrial_muted }
-        binding.statusIcon.setTextColor(getColor(color))
+        val color = when (phase) { LinkPhase.ONLINE -> R.attr.appPositive; LinkPhase.STALE, LinkPhase.RECONNECTING, LinkPhase.CONNECTING, LinkPhase.DISCOVERING, LinkPhase.SUBSCRIBING, LinkPhase.DFU -> R.attr.appWarning; LinkPhase.FAULT -> R.attr.appDanger; else -> R.attr.appTextSecondary }
+        binding.statusIcon.setTextColor(themeColor(color))
         if (phase == LinkPhase.ONLINE && device.kind != DeviceKind.RECEIVER && sensorInfo == null) readSensorConfiguration(false)
         markStale(phase == LinkPhase.STALE)
     }
@@ -317,7 +315,6 @@ class DeviceActivity : AppCompatActivity(), BleCentralManager.Listener {
     }
     private fun lastDataText() = sensorPayload?.receivedAt?.let { "${(System.currentTimeMillis() - it) / 1000}秒前" } ?: "等待数据"
     private fun phaseText(phase: LinkPhase) = when (phase) { LinkPhase.IDLE -> "未连接"; LinkPhase.SCANNING -> "正在扫描"; LinkPhase.CONNECTING -> "正在连接"; LinkPhase.DISCOVERING -> "正在发现服务"; LinkPhase.SUBSCRIBING -> "正在订阅数据"; LinkPhase.ONLINE -> "设备在线"; LinkPhase.STALE -> "数据超时"; LinkPhase.RECONNECTING -> "正在重连"; LinkPhase.DISCONNECTING -> "正在断开"; LinkPhase.DFU -> "固件升级"; LinkPhase.FAULT -> "设备故障" }
-    private fun applyMineMode() { if (app.preferences.mineMode) { binding.root.setBackgroundColor(getColor(R.color.mine_background)); binding.statusBar.setBackgroundColor(getColor(R.color.mine_surface)) } }
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
     private fun runOperation(name: String, block: suspend () -> Unit) = lifecycleScope.launch { runCatching { block() }.onSuccess { toast("$name 成功") }.onFailure { app.audit.record(name, "失败", device.address, it.message); toast(it.message ?: "$name 失败") } }
     private fun confirm(title: String, message: String, action: () -> Unit) { MaterialAlertDialogBuilder(this).setTitle(title).setMessage(message).setNegativeButton("取消", null).setPositiveButton("确认") { _, _ -> action() }.show() }

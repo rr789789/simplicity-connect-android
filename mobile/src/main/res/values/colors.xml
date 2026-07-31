@@ -11,4 +11,23 @@
     <color name="mine_background">#080B0D</color>
     <color name="mine_surface">#12171A</color>
     <color name="mine_text">#F5F7F8</color>
+    <color name="normal_background">#F2F5F3</color>
+    <color name="normal_surface">#FFFFFF</color>
+    <color name="normal_surface_raised">#E8EEEA</color>
+    <color name="normal_text">#17211D</color>
+    <color name="normal_text_secondary">#5C6963</color>
+    <color name="normal_outline">#CDD7D1</color>
+    <color name="normal_status_surface">#1C2A24</color>
+    <color name="normal_positive">#087A58</color>
+    <color name="normal_warning">#C87800</color>
+    <color name="normal_danger">#C43632</color>
+    <color name="normal_tint_soft">#DDF1E7</color>
+    <color name="mine_surface_raised">#1A211E</color>
+    <color name="mine_text_secondary">#AAB6B0</color>
+    <color name="mine_outline">#39443F</color>
+    <color name="mine_status_surface">#0D120F</color>
+    <color name="mine_positive">#42D68E</color>
+    <color name="mine_warning">#FFC247</color>
+    <color name="mine_danger">#FF6B62</color>
+    <color name="mine_tint_soft">#19382A</color>
 </resources>

@@ -1,12 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/industrial_background" android:orientation="vertical">
-    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp" android:background="@color/industrial_surface" app:navigationIcon="@drawable/ic_back" android:title="历史趋势" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
-        <Spinner android:id="@+id/slot" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" />
-        <com.google.android.material.button.MaterialButton android:id="@+id/alarm" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="110dp" android:layout_height="48dp" android:text="告警阈值" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/appBackground"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="?attr/appSurface"
+        android:subtitleTextColor="?attr/appTextSecondary"
+        android:title="历史趋势"
+        android:titleTextColor="?attr/appTextPrimary"
+        app:navigationIcon="@drawable/ic_back"
+        app:navigationIconTint="?attr/appTextPrimary" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <Spinner
+            android:id="@+id/slot"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_panel_raised"
+            android:paddingHorizontal="12dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/alarm"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="116dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="8dp"
+            android:text="告警阈值"
+            app:cornerRadius="6dp" />
     </LinearLayout>
-    <com.zg.sensormonitor.ui.TrendView android:id="@+id/chart" android:layout_width="match_parent" android:layout_height="0dp" android:layout_margin="12dp" android:layout_weight="1" android:background="@color/industrial_surface" />
-    <TextView android:id="@+id/summary" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="16dp" android:paddingVertical="8dp" android:textColor="@color/industrial_muted" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/export" android:layout_width="match_parent" android:layout_height="48dp" android:layout_margin="12dp" android:text="导出90天CSV" />
+
+    <com.zg.sensormonitor.ui.TrendView
+        android:id="@+id/chart"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_panel" />
+
+    <TextView
+        android:id="@+id/summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="?attr/appTextSecondary"
+        android:textSize="13sp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/export"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="12dp"
+        android:text="导出 90 天 CSV"
+        app:cornerRadius="6dp" />
 </LinearLayout>

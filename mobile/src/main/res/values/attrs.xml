@@ -1,0 +1,13 @@
+<resources>
+    <attr name="appBackground" format="color" />
+    <attr name="appSurface" format="color" />
+    <attr name="appSurfaceRaised" format="color" />
+    <attr name="appTextPrimary" format="color" />
+    <attr name="appTextSecondary" format="color" />
+    <attr name="appOutline" format="color" />
+    <attr name="appStatusSurface" format="color" />
+    <attr name="appPositive" format="color" />
+    <attr name="appWarning" format="color" />
+    <attr name="appDanger" format="color" />
+    <attr name="appTintSoft" format="color" />
+</resources>

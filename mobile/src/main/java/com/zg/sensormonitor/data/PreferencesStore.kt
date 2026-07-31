@@ -15,7 +15,7 @@ class PreferencesStore(context: Context) {
         set(value) = prefs.edit().putInt("scan_rssi", value.coerceIn(-100, -35)).apply()
 
     var mineMode: Boolean
-        get() = prefs.getBoolean("mine_mode", false)
+        get() = prefs.getBoolean("mine_mode", true)
         set(value) = prefs.edit().putBoolean("mine_mode", value).apply()
 
     fun saveRecent(address: String, name: String) {

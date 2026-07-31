@@ -1,46 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@color/industrial_background" android:orientation="vertical">
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/appBackground"
+    android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp"
-        android:background="@color/industrial_surface" android:title="@string/app_name"
-        android:titleTextColor="@color/industrial_ink" app:menu="@menu/main_menu" />
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="?attr/appSurface"
+        android:paddingHorizontal="8dp"
+        android:subtitle="蓝牙接收器与传感器"
+        android:subtitleTextColor="?attr/appTextSecondary"
+        android:title="@string/app_name"
+        android:titleTextColor="?attr/appTextPrimary"
+        app:menu="@menu/main_menu" />
 
-    <LinearLayout android:id="@+id/statusBar" android:layout_width="match_parent" android:layout_height="52dp"
-        android:background="@color/industrial_ink" android:gravity="center_vertical" android:orientation="horizontal"
+    <LinearLayout
+        android:id="@+id/statusBar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_status"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingHorizontal="16dp">
-        <TextView android:id="@+id/statusIcon" android:layout_width="28dp" android:layout_height="wrap_content"
-            android:text="●" android:textColor="@color/industrial_green" android:textSize="18sp" />
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-            <TextView android:id="@+id/statusTitle" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="准备就绪" android:textColor="@android:color/white" android:textSize="15sp" android:textStyle="bold" />
-            <TextView android:id="@+id/statusDetail" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="等待扫描" android:textColor="#C8D0D5" android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/statusIcon"
+            android:layout_width="28dp"
+            android:layout_height="wrap_content"
+            android:text="●"
+            android:textColor="?attr/appPositive"
+            android:textSize="17sp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/statusTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="设备现场"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="等待扫描"
+                android:textColor="#C7D0CB"
+                android:textSize="12sp" />
         </LinearLayout>
-        <TextView android:id="@+id/deviceCount" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="0 台" android:textColor="@android:color/white" android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/modeBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:background="@drawable/bg_mode_badge"
+            android:gravity="center"
+            android:minWidth="70dp"
+            android:paddingHorizontal="8dp"
+            android:text="井下模式"
+            android:textColor="?attr/appPositive"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/deviceCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="0 台"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
-        android:paddingStart="12dp" android:paddingTop="12dp" android:paddingEnd="12dp" android:paddingBottom="8dp">
-        <com.google.android.material.textfield.TextInputLayout android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" app:boxBackgroundMode="outline" app:startIconDrawable="@android:drawable/ic_menu_search">
-            <com.google.android.material.textfield.TextInputEditText android:id="@+id/search"
-                android:layout_width="match_parent" android:layout_height="48dp" android:hint="@string/search_hint"
-                android:imeOptions="actionSearch" android:singleLine="true" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:boxBackgroundColor="?attr/appSurface"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusBottomEnd="6dp"
+            app:boxCornerRadiusBottomStart="6dp"
+            app:boxCornerRadiusTopEnd="6dp"
+            app:boxCornerRadiusTopStart="6dp"
+            app:boxStrokeColor="?attr/appOutline"
+            app:startIconDrawable="@android:drawable/ic_menu_search"
+            app:startIconTint="?attr/appTextSecondary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/search"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:hint="@string/search_hint"
+                android:imeOptions="actionSearch"
+                android:singleLine="true"
+                android:textColor="?attr/appTextPrimary"
+                android:textColorHint="?attr/appTextSecondary" />
         </com.google.android.material.textfield.TextInputLayout>
-        <com.google.android.material.button.MaterialButton android:id="@+id/scanButton"
-            android:layout_width="96dp" android:layout_height="52dp" android:layout_marginStart="8dp"
-            android:text="@string/scan" app:icon="@android:drawable/stat_sys_data_bluetooth" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/scanButton"
+            android:layout_width="104dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/scan"
+            android:textStyle="bold"
+            app:cornerRadius="6dp"
+            app:icon="@android:drawable/stat_sys_data_bluetooth"
+            app:iconGravity="textStart" />
     </LinearLayout>
 
-    <TextView android:id="@+id/empty" android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:gravity="center" android:text="@string/no_devices"
-        android:textColor="@color/industrial_muted" android:textSize="16sp" />
-    <androidx.recyclerview.widget.RecyclerView android:id="@+id/deviceList"
-        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-        android:clipToPadding="false" android:paddingHorizontal="12dp" android:paddingBottom="16dp" />
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="@string/no_devices"
+        android:textColor="?attr/appTextSecondary"
+        android:textSize="16sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/deviceList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="12dp"
+        android:paddingBottom="16dp" />
 </LinearLayout>

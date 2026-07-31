@@ -1,5 +1,6 @@
 package com.zg.sensormonitor.ui
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -21,7 +22,7 @@ class DeviceAdapter(private val onClick: (DiscoveredDevice) -> Unit) : RecyclerV
             address.text = "${kindName(device.kind)} · ${device.address}"
             rssi.text = device.rssi.toString()
             kind.text = when (device.kind) { DeviceKind.RECEIVER -> "收"; DeviceKind.PRESSURE -> "压"; DeviceKind.TILT -> "倾"; else -> "感" }
-            kind.setBackgroundColor(root.context.getColor(if (device.rssi >= -80) R.color.industrial_green else R.color.industrial_amber))
+            kind.backgroundTintList = ColorStateList.valueOf(root.context.themeColor(if (device.rssi >= -80) R.attr.appPositive else R.attr.appWarning))
             root.setOnClickListener { onClick(device) }
         }
     }

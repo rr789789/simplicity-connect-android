@@ -22,7 +22,7 @@ class SlotAdapter(private val onClick: (SlotState) -> Unit) : RecyclerView.Adapt
             slotNumber.text = "槽 ${slot.slot + 1}${if (slot.fast) " · 快" else " · 慢"}"
             val status = when { slot.binding == null -> "未绑定"; slot.stale -> "超时"; slot.reading != null -> "正常"; else -> "等待" }
             state.text = status
-            state.setTextColor(root.context.getColor(when (status) { "正常" -> R.color.industrial_green; "超时" -> R.color.industrial_amber; else -> R.color.industrial_muted }))
+            state.setTextColor(root.context.themeColor(when (status) { "正常" -> R.attr.appPositive; "超时" -> R.attr.appWarning; else -> R.attr.appTextSecondary }))
             value.text = formatValue(slot)
             position.text = slot.binding?.let { "${positionName(it.type, it.sensorId)} · ${it.mac}" } ?: "未配置位置"
             val voltage = slot.reading?.let { DeviceProtocol.voltage(it, slot.info) }?.let { "%.1fV".format(it) } ?: "--"

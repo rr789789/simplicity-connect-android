@@ -9,7 +9,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
@@ -19,7 +18,7 @@ import com.zg.sensormonitor.ble.BleCentralManager
 import com.zg.sensormonitor.databinding.ActivityMainBinding
 import com.zg.sensormonitor.domain.*
 
-class MainActivity : AppCompatActivity(), BleCentralManager.Listener {
+class MainActivity : ThemedActivity(), BleCentralManager.Listener {
     private lateinit var binding: ActivityMainBinding
     private val app get() = application as SensorMonitorApplication
     private val devices = linkedMapOf<String, DiscoveredDevice>()
@@ -46,7 +45,7 @@ class MainActivity : AppCompatActivity(), BleCentralManager.Listener {
     }
 
     override fun onResume() {
-        super.onResume(); app.ble.addListener(this); applyMineMode(); ensurePermissions()
+        super.onResume(); app.ble.addListener(this); binding.modeBadge.text = if (app.preferences.mineMode) "井下模式" else "普通模式"; ensurePermissions()
     }
     override fun onPause() { app.ble.stopScan(); app.ble.removeListener(this); super.onPause() }
 
@@ -67,7 +66,7 @@ class MainActivity : AppCompatActivity(), BleCentralManager.Listener {
         binding.scanButton.text = if (scanning) getString(R.string.stop) else getString(R.string.scan)
         binding.statusTitle.text = when (phase) { LinkPhase.SCANNING -> "正在识别附近设备"; LinkPhase.FAULT -> "扫描异常"; else -> "设备现场" }
         binding.statusDetail.text = message ?: if (scanning) "按信号强度排序" else "扫描已停止"
-        binding.statusIcon.setTextColor(getColor(if (phase == LinkPhase.FAULT) R.color.industrial_red else R.color.industrial_green))
+        binding.statusIcon.setTextColor(themeColor(if (phase == LinkPhase.FAULT) R.attr.appDanger else R.attr.appPositive))
     }
 
     private fun refresh() {
@@ -86,8 +85,4 @@ class MainActivity : AppCompatActivity(), BleCentralManager.Listener {
         })
     }
     private fun onMenu(item: MenuItem): Boolean = if (item.itemId == R.id.action_settings) { startActivity(Intent(this, SettingsActivity::class.java)); true } else false
-    private fun applyMineMode() {
-        if (app.preferences.mineMode) { binding.root.setBackgroundColor(getColor(R.color.mine_background)); binding.statusBar.setBackgroundColor(getColor(R.color.mine_surface)) }
-        else { binding.root.setBackgroundColor(getColor(R.color.industrial_background)); binding.statusBar.setBackgroundColor(getColor(R.color.industrial_ink)) }
-    }
 }

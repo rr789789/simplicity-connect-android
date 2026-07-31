@@ -6,7 +6,6 @@ import android.text.InputType
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.zg.sensormonitor.BuildConfig
@@ -14,15 +13,22 @@ import com.zg.sensormonitor.SensorMonitorApplication
 import com.zg.sensormonitor.data.PasswordResult
 import com.zg.sensormonitor.databinding.ActivitySettingsBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : ThemedActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private val app get() = application as SensorMonitorApplication
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater); setContentView(binding.root)
         binding.toolbar.setNavigationOnClickListener { finish() }
-        binding.mineMode.isChecked = app.preferences.mineMode
-        binding.mineMode.setOnCheckedChangeListener { _, checked -> app.preferences.mineMode = checked }
+        binding.modeGroup.check(if (app.preferences.mineMode) R.id.mineMode else R.id.normalMode)
+        binding.modeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val mineMode = checkedId == R.id.mineMode
+            if (mineMode != app.preferences.mineMode) {
+                app.preferences.mineMode = mineMode
+                recreate()
+            }
+        }
         binding.rssiSlider.progress = app.preferences.rssiThreshold + 100
         updateRssi(binding.rssiSlider.progress)
         binding.rssiSlider.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {

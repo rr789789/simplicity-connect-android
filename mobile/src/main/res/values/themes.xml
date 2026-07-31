@@ -1,11 +1,59 @@
 <resources>
     <style name="Theme.SensorMonitor" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/industrial_green</item>
+        <item name="colorPrimary">@color/mine_positive</item>
         <item name="colorPrimaryVariant">@color/industrial_green_dark</item>
-        <item name="colorSecondary">@color/industrial_amber</item>
+        <item name="colorSecondary">@color/mine_warning</item>
+        <item name="colorSurface">@color/mine_surface</item>
+        <item name="colorOnSurface">@color/mine_text</item>
+        <item name="colorOnPrimary">@color/mine_background</item>
+        <item name="android:colorBackground">@color/mine_background</item>
+        <item name="android:textColorPrimary">@color/mine_text</item>
+        <item name="android:textColorSecondary">@color/mine_text_secondary</item>
         <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/mine_status_surface</item>
+        <item name="android:navigationBarColor">@color/mine_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:colorAccent">@color/mine_positive</item>
+        <item name="appBackground">@color/mine_background</item>
+        <item name="appSurface">@color/mine_surface</item>
+        <item name="appSurfaceRaised">@color/mine_surface_raised</item>
+        <item name="appTextPrimary">@color/mine_text</item>
+        <item name="appTextSecondary">@color/mine_text_secondary</item>
+        <item name="appOutline">@color/mine_outline</item>
+        <item name="appStatusSurface">@color/mine_status_surface</item>
+        <item name="appPositive">@color/mine_positive</item>
+        <item name="appWarning">@color/mine_warning</item>
+        <item name="appDanger">@color/mine_danger</item>
+        <item name="appTintSoft">@color/mine_tint_soft</item>
+    </style>
+
+    <style name="Theme.SensorMonitor.Mine" parent="Theme.SensorMonitor" />
+
+    <style name="Theme.SensorMonitor.Normal" parent="Theme.SensorMonitor">
+        <item name="colorPrimary">@color/normal_positive</item>
+        <item name="colorSecondary">@color/normal_warning</item>
+        <item name="colorSurface">@color/normal_surface</item>
+        <item name="colorOnSurface">@color/normal_text</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="android:colorBackground">@color/normal_background</item>
+        <item name="android:textColorPrimary">@color/normal_text</item>
+        <item name="android:textColorSecondary">@color/normal_text_secondary</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">@color/industrial_surface</item>
-        <item name="android:colorAccent">@color/industrial_green</item>
+        <item name="android:statusBarColor">@color/normal_surface</item>
+        <item name="android:navigationBarColor">@color/normal_surface</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:colorAccent">@color/normal_positive</item>
+        <item name="appBackground">@color/normal_background</item>
+        <item name="appSurface">@color/normal_surface</item>
+        <item name="appSurfaceRaised">@color/normal_surface_raised</item>
+        <item name="appTextPrimary">@color/normal_text</item>
+        <item name="appTextSecondary">@color/normal_text_secondary</item>
+        <item name="appOutline">@color/normal_outline</item>
+        <item name="appStatusSurface">@color/normal_status_surface</item>
+        <item name="appPositive">@color/normal_positive</item>
+        <item name="appWarning">@color/normal_warning</item>
+        <item name="appDanger">@color/normal_danger</item>
+        <item name="appTintSoft">@color/normal_tint_soft</item>
     </style>
 </resources>

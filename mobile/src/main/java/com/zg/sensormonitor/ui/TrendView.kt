@@ -10,9 +10,9 @@ import com.zg.sensormonitor.data.HistoryPoint
 
 class TrendView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private var points = emptyList<HistoryPoint>()
-    private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.industrial_line); strokeWidth = 1f }
-    private val range = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x33137A4B; style = Paint.Style.FILL }
-    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.industrial_green); strokeWidth = 3f; style = Paint.Style.STROKE }
+    private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.themeColor(R.attr.appOutline); strokeWidth = 1f }
+    private val range = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.themeColor(R.attr.appTintSoft); style = Paint.Style.FILL }
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.themeColor(R.attr.appPositive); strokeWidth = 3f; style = Paint.Style.STROKE }
     fun submit(value: List<HistoryPoint>) { points = value; invalidate() }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

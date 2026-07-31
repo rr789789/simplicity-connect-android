@@ -5,14 +5,13 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.View
 import android.widget.*
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.zg.sensormonitor.SensorMonitorApplication
 import com.zg.sensormonitor.data.AlarmPolicy
 import com.zg.sensormonitor.databinding.ActivityHistoryBinding
 
-class HistoryActivity : AppCompatActivity() {
+class HistoryActivity : ThemedActivity() {
     private lateinit var binding: ActivityHistoryBinding
     private val app get() = application as SensorMonitorApplication
     private lateinit var address: String
