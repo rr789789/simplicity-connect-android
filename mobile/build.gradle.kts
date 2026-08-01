@@ -11,8 +11,8 @@ android {
         applicationId = "com.zg.sonsrmonitor"
         minSdk = 30
         targetSdk = 36
-        versionCode = 104
-        versionName = "1.4.0"
+        versionCode = 105
+        versionName = "1.4.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

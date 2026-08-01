@@ -35,7 +35,8 @@ class DeviceProtocolTest {
 
     @Test fun parsesMacStrictly() {
         assertEquals("AA:BB:CC:DD:EE:FF", DeviceProtocol.bytesToMac(DeviceProtocol.parseMac("AA-BB-CC-DD-EE-FF")!!))
-        assertNull(DeviceProtocol.parseMac("A:B:C:D:E:F"))
+        assertEquals("0A:0B:0C:0D:0E:0F", DeviceProtocol.bytesToMac(DeviceProtocol.parseMac("A:B:C:D:E:F")!!))
+        assertNull(DeviceProtocol.parseMac("A:B:C:D:E"))
     }
 
     @Test fun classifiesSupportedNamesAndServices() {

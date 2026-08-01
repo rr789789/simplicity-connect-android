@@ -102,7 +102,7 @@ object DeviceProtocol {
         return SensorInfo(
             b.getInt(0).toLong() and 0xffffffffL,
             if (data.size >= 8) b.getInt(4).toLong() and 0xffffffffL else 0,
-            b.getShort(8).toInt() and 0xffff, data.getOrNull(10)?.toInt() == 1,
+            b.getShort(8).toInt() and 0xffff, (data.getOrNull(10)?.toInt()?.and(0xff) ?: 0) != 0,
             data.getOrNull(11)?.toInt()?.and(0xff) ?: 0,
             if (data.size >= 14) b.getShort(12).toInt() and 0xffff else 0,
             data.getOrNull(14)?.toInt()?.and(0xff) ?: 0,
@@ -119,7 +119,7 @@ object DeviceProtocol {
 
     fun parseMac(text: String): ByteArray? {
         val parts = text.trim().replace('-', ':').split(':')
-        if (parts.size != 6 || parts.any { !it.matches(Regex("[0-9a-fA-F]{2}")) }) return null
+        if (parts.size != 6 || parts.any { !it.matches(Regex("[0-9a-fA-F]{1,2}")) }) return null
         return ByteArray(6) { parts[it].toInt(16).toByte() }
     }
 

@@ -8,6 +8,7 @@ import com.zg.sensormonitor.R
 import com.zg.sensormonitor.databinding.RowSlotBinding
 import com.zg.sensormonitor.domain.SlotState
 import com.zg.sensormonitor.protocol.DeviceProtocol
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class SlotAdapter(
@@ -56,7 +57,7 @@ class SlotAdapter(
     private fun formatValue(slot: SlotState): String {
         val p = slot.reading ?: return "--"
         return when (slot.binding?.type ?: slot.info?.sensorType) {
-            DeviceProtocol.TYPE_PRESSURE -> "%.2f MPa".format(p.pressure / 10.0)
+            DeviceProtocol.TYPE_PRESSURE -> "%,d bar".format(Locale.US, p.pressure)
             DeviceProtocol.TYPE_TILT -> "X %.1f°  Y %.1f°".format(p.xAngle / 10.0, p.yAngle / 10.0)
             else -> p.pressure.toString()
         }
@@ -66,7 +67,7 @@ class SlotAdapter(
         val p = slot.reading ?: return "--"
         return when (slot.binding?.type ?: slot.info?.sensorType) {
             DeviceProtocol.TYPE_TILT -> "X ${p.xRaw} Y ${p.yRaw} Z ${p.zRaw}"
-            else -> p.raw.toString()
+            else -> "%,d (0x%08X)".format(Locale.US, p.raw, p.raw)
         }
     }
 

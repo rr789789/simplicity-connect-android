@@ -45,6 +45,8 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private var responseWaiter: ResponseWaiter? = null
     private var pendingMacInput: EditText? = null
     private var pendingFirmwareSource: FirmwareSource? = null
+    private var receiverConfigLoaded = false
+    private var receiverConfigLoading = false
     private val bindingEditors = linkedMapOf<Int, Pair<Spinner, EditText>>()
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val ageRefresh = object : Runnable {
@@ -100,6 +102,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.sensorPanel.visibility = if (receiver) View.GONE else View.VISIBLE
         binding.rateCard.visibility = if (receiver) View.GONE else View.VISIBLE
         binding.workModeCard.visibility = if (receiver) View.GONE else View.VISIBLE
+        if (receiver) loadCachedReceiverBindings()
         renderSummary()
         binding.readConfig.setOnClickListener { if (receiver) readAllConfiguration() else readSensorConfiguration(true) }
         binding.readSensorInfo.setOnClickListener { readSensorConfiguration(true) }
@@ -141,6 +144,9 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         val color = when (phase) { LinkPhase.ONLINE -> R.attr.appPositive; LinkPhase.STALE, LinkPhase.RECONNECTING, LinkPhase.CONNECTING, LinkPhase.DISCOVERING, LinkPhase.SUBSCRIBING, LinkPhase.DFU -> R.attr.appWarning; LinkPhase.FAULT -> R.attr.appDanger; else -> R.attr.appTextSecondary }
         binding.statusIcon.setTextColor(themeColor(color))
         binding.statusTitle.setTextColor(themeColor(color))
+        if (phase == LinkPhase.ONLINE && device.kind == DeviceKind.RECEIVER && !receiverConfigLoaded && !receiverConfigLoading) {
+            refreshReceiverConfiguration(showResult = false)
+        }
         if (phase == LinkPhase.ONLINE && device.kind != DeviceKind.RECEIVER && sensorInfo == null) readSensorConfiguration(false)
         markStale(phase == LinkPhase.STALE)
         renderSummary()
@@ -152,6 +158,9 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         renderSummary()
         binding.statusDetail.text = "ID ${status.receiverId} · 绑定 ${Integer.bitCount(status.boundMask)} · 在线 ${Integer.bitCount(status.onlineMask)} · 有效 ${Integer.bitCount(status.validMask)}"
         submitSlots()
+        if (!receiverConfigLoaded && !receiverConfigLoading && app.ble.phase == LinkPhase.ONLINE) {
+            refreshReceiverConfiguration(showResult = false)
+        }
     }
     override fun onStream(reading: StreamReading) {
         val old = slots[reading.slot]
@@ -172,8 +181,23 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         renderSensor()
     }
 
-    private fun readAllConfiguration() = lifecycleScope.launch {
-        runOperation("读取配置") {
+    private fun readAllConfiguration() = refreshReceiverConfiguration(showResult = true)
+
+    private fun loadCachedReceiverBindings() {
+        app.preferences.receiverBindings(device.address).forEachIndexed { index, cached ->
+            if (cached != null) slots[index] = slots[index].copy(binding = cached)
+        }
+        submitSlots()
+    }
+
+    private fun saveReceiverBindingCache() {
+        app.preferences.saveReceiverBindings(device.address, slots.map { it.binding })
+    }
+
+    private fun refreshReceiverConfiguration(showResult: Boolean) = lifecycleScope.launch {
+        if (receiverConfigLoading) return@launch
+        receiverConfigLoading = true
+        runCatching {
             for (slot in 0 until DeviceProtocol.SLOT_COUNT) {
                 val response = sendConfirmed(DeviceProtocol.getSlot(slot), DeviceProtocol.Op.GET_SLOT, slot)
                 slots[slot] = slots[slot].copy(binding = if (response.type == 0) null else BindingConfig(slot, response.type, response.sensorId, response.mac))
@@ -182,13 +206,17 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
                     slots[slot] = slots[slot].copy(info = info)
                 }
             }
-            submitSlots()
-            val reports = AcceptanceReport.create(this@DeviceActivity, device.address, receiverStatus, slots)
-            val bound = slots.filter { it.binding != null }
-            val passed = bound.isNotEmpty() && bound.all { it.reading != null && !it.stale && receiverStatus?.online(it.slot) == true && receiverStatus?.valid(it.slot) == true }
-            app.audit.record("配置验收", if (passed) "通过" else "未通过", device.address)
-            Snackbar.make(binding.root, "验收完成，已生成PDF和JSON", Snackbar.LENGTH_LONG).setAction("分享") { shareFiles(reports) }.show()
+            receiverConfigLoaded = true
+            saveReceiverBindingCache()
             buildBindingEditors()
+            submitSlots()
+        }.onSuccess {
+            if (showResult) toast("读取配置成功")
+        }.onFailure {
+            app.audit.record("读取配置", "失败", device.address, it.message)
+            if (showResult) toast(it.message ?: "读取配置失败")
+        }.also {
+            receiverConfigLoading = false
         }
     }
 
@@ -229,12 +257,14 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         runOperation("保存绑定") {
             sendConfirmed(DeviceProtocol.setSlot(slot, position.type, position.id, mac), DeviceProtocol.Op.SET_SLOT, slot)
             slots[slot] = slots[slot].copy(binding = BindingConfig(slot, position.type, position.id, DeviceProtocol.bytesToMac(mac)))
+            saveReceiverBindingCache()
+            buildBindingEditors()
             submitSlots(); app.audit.record("绑定", "成功", device.address, "slot=${slot + 1},mac=${DeviceProtocol.bytesToMac(mac)}")
         }
     }
 
     private fun clearSlot(slot: Int) = lifecycleScope.launch { confirm("清除槽 ${slot + 1}", "该槽传感器将被移除") {
-        runOperation("清除槽位") { sendConfirmed(DeviceProtocol.clearSlot(slot), DeviceProtocol.Op.CLEAR_SLOT, slot); slots[slot] = SlotState(slot); submitSlots(); app.audit.record("清除槽位", "成功", device.address, "slot=${slot + 1}") }
+        runOperation("清除槽位") { sendConfirmed(DeviceProtocol.clearSlot(slot), DeviceProtocol.Op.CLEAR_SLOT, slot); slots[slot] = SlotState(slot); saveReceiverBindingCache(); buildBindingEditors(); submitSlots(); app.audit.record("清除槽位", "成功", device.address, "slot=${slot + 1}") }
     } }
 
     private fun onSlotClicked(slot: SlotState) {
@@ -343,6 +373,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             }
             submitSlots()
             buildBindingEditors()
+            saveReceiverBindingCache()
         }
     }
 
@@ -354,7 +385,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             renderSensor(); if (showResult) toast("设备信息已读取")
         }.onFailure { if (showResult) toast(it.message ?: "读取失败") }
     }
-    private fun setSensorRate(fast: Boolean) = lifecycleScope.launch { runOperation("切换速率") { app.ble.setSensorRate(fast); app.audit.record("上报速率", "成功", device.address, if (fast) "100ms" else "1s") } }
+    private fun setSensorRate(fast: Boolean) = lifecycleScope.launch { runOperation("切换速率") { app.ble.setSensorRate(fast); sensorInfo = sensorInfo?.copy(rate = if (fast) 1 else 0); renderSensor(); app.audit.record("上报速率", "成功", device.address, if (fast) "100ms" else "1s") } }
     private fun setSensorPowerMode(low: Boolean) { if (!requireMaintenance()) return; lifecycleScope.launch { runOperation("切换功耗") { app.ble.setPowerMode(low); sensorInfo = sensorInfo?.copy(powerMode = if (low) 1 else 0); renderSensor(); app.audit.record("功耗模式", "成功", device.address, if (low) "低功耗" else "普通") } } }
     private fun markZero() {
         if (!requireMaintenance()) return
@@ -375,7 +406,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.uptimeValue.text = "运行秒 ${payload?.uptime24 ?: "--"}"
         binding.livePa5.text = "PA5 ${payload?.pa5?.let { if (it) "高" else "低" } ?: "--"}"
         binding.liveVoltage.text = "电压 ${payload?.let { DeviceProtocol.voltage(it, info) }?.let { "%.1fV".format(it) } ?: "--"}"
-        binding.rawValue.text = "Raw ${payload?.raw ?: "--"}"
+        binding.rawValue.text = "Raw ${formatRaw(payload, info)}"
         binding.infoWork.text = info?.workSeconds?.let(::formatDuration) ?: "--"
         binding.infoVoltage.text = info?.voltageMv?.takeIf { it > 0 }?.let { "%.2f V".format(it / 1000.0) } ?: "--"
         binding.infoBoot.text = info?.bootSeconds?.let(::formatDuration) ?: "--"
@@ -399,6 +430,15 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         val hours = seconds % 86400 / 3600
         val minutes = seconds % 3600 / 60
         return if (days > 0) "${days}天${hours}小时" else if (hours > 0) "${hours}小时${minutes}分" else "${minutes}分${seconds % 60}秒"
+    }
+
+    private fun formatRaw(payload: SensorPayload?, info: SensorInfo?): String {
+        if (payload == null) return "--"
+        return if (info?.sensorType == DeviceProtocol.TYPE_TILT || device.kind == DeviceKind.TILT) {
+            "X ${payload.xRaw}  Y ${payload.yRaw}  Z ${payload.zRaw}"
+        } else {
+            "%,d (0x%08X)".format(java.util.Locale.US, payload.raw, payload.raw)
+        }
     }
 
     private fun renderSummary() {
@@ -445,7 +485,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             val id = input.text.toString().toIntOrNull(); if (id == null || id !in 0..65535) toast("ID范围错误") else lifecycleScope.launch { runOperation("修改ID") { sendConfirmed(DeviceProtocol.setId(id), DeviceProtocol.Op.SET_ID); app.audit.record("修改ID", "成功", device.address, id.toString()) } }
         }.show()
     }
-    private fun clearAll() = lifecycleScope.launch { confirm("清除全部绑定", "此操作会移除8个槽位的全部绑定") { runOperation("清除全部") { sendConfirmed(DeviceProtocol.clearAll(), DeviceProtocol.Op.CLEAR_ALL); slots.indices.forEach { slots[it] = SlotState(it) }; submitSlots(); app.audit.record("清除全部", "成功", device.address) } } }
+    private fun clearAll() = lifecycleScope.launch { confirm("清除全部绑定", "此操作会移除8个槽位的全部绑定") { runOperation("清除全部") { sendConfirmed(DeviceProtocol.clearAll(), DeviceProtocol.Op.CLEAR_ALL); slots.indices.forEach { slots[it] = SlotState(it) }; app.preferences.clearReceiverBindings(device.address); buildBindingEditors(); submitSlots(); app.audit.record("清除全部", "成功", device.address) } } }
     private fun showChangeMac() {
         val input = EditText(this).apply { hint = "AA:BB:CC:DD:EE:FF" }
         MaterialAlertDialogBuilder(this).setTitle("修改传感器MAC").setView(input).setNegativeButton("取消", null).setPositiveButton("写入并重启") { _, _ ->

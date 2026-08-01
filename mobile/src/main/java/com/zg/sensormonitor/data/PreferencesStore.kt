@@ -2,6 +2,7 @@ package com.zg.sensormonitor.data
 
 import android.content.Context
 import android.util.Base64
+import com.zg.sensormonitor.domain.BindingConfig
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
@@ -29,6 +30,34 @@ class PreferencesStore(context: Context) {
     fun recentDevice(): Pair<String, String>? {
         val address = prefs.getString("recent_address", null) ?: return null
         return address to prefs.getString("recent_name", "").orEmpty()
+    }
+
+    fun receiverBindings(address: String): List<BindingConfig?> {
+        val saved = prefs.getString("rx_bindings_$address", null).orEmpty()
+        val slots = MutableList<BindingConfig?>(8) { null }
+        saved.split(';').filter { it.isNotBlank() }.forEach { row ->
+            val parts = row.split(',')
+            if (parts.size != 4) return@forEach
+            val slot = parts[0].toIntOrNull() ?: return@forEach
+            val type = parts[1].toIntOrNull() ?: return@forEach
+            val sensorId = parts[2].toIntOrNull() ?: return@forEach
+            val mac = parts[3]
+            if (slot in 0 until slots.size && type > 0 && sensorId > 0 && mac.isNotBlank()) {
+                slots[slot] = BindingConfig(slot, type, sensorId, mac)
+            }
+        }
+        return slots
+    }
+
+    fun saveReceiverBindings(address: String, bindings: List<BindingConfig?>) {
+        val encoded = bindings.mapIndexedNotNull { slot, item ->
+            item?.let { "$slot,${it.type},${it.sensorId},${it.mac.uppercase()}" }
+        }.joinToString(";")
+        prefs.edit().putString("rx_bindings_$address", encoded).apply()
+    }
+
+    fun clearReceiverBindings(address: String) {
+        prefs.edit().remove("rx_bindings_$address").apply()
     }
 
     fun tiltZero(address: String): Pair<Int, Int> =
