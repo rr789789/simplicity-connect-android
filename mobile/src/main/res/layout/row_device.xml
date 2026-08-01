@@ -1,84 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="92dp"
-    android:layout_marginBottom="8dp"
+    android:layout_height="78dp"
+    android:background="?attr/selectableItemBackground"
     android:clickable="true"
     android:focusable="true"
-    android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="?attr/appSurface"
-    app:cardCornerRadius="6dp"
-    app:cardElevation="0dp"
-    app:strokeColor="?attr/appOutline"
-    app:strokeWidth="1dp">
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="8dp">
+
+    <TextView
+        android:id="@+id/kind"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_device_icon"
+        android:gravity="center"
+        android:text="收"
+        android:textColor="@android:color/white"
+        android:textSize="15sp"
+        android:textStyle="bold" />
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="14dp">
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <TextView
-            android:id="@+id/kind"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_mode_badge"
-            android:gravity="center"
-            android:text="收"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/name"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/appTextPrimary"
+            android:textSize="15sp" />
 
-            <TextView
-                android:id="@+id/name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="?attr/appTextPrimary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/address"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="?attr/appTextSecondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="70dp"
+        <TextView
+            android:id="@+id/address"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="end"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/rssi"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/appTextPrimary"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="dBm"
-                android:textColor="?attr/appTextSecondary"
-                android:textSize="11sp" />
-        </LinearLayout>
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/appTextSecondary"
+            android:textSize="12sp" />
     </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout
+        android:layout_width="62dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="22dp"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+            <View android:id="@+id/bar1" android:layout_width="4dp" android:layout_height="7dp" android:layout_marginStart="2dp" android:background="?attr/appOutline" />
+            <View android:id="@+id/bar2" android:layout_width="4dp" android:layout_height="11dp" android:layout_marginStart="2dp" android:background="?attr/appOutline" />
+            <View android:id="@+id/bar3" android:layout_width="4dp" android:layout_height="15dp" android:layout_marginStart="2dp" android:background="?attr/appOutline" />
+            <View android:id="@+id/bar4" android:layout_width="4dp" android:layout_height="19dp" android:layout_marginStart="2dp" android:background="?attr/appOutline" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/rssi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="-- dBm"
+            android:textColor="?attr/appTextSecondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

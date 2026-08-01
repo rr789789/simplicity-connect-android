@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.SensorMonitor" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/mine_positive</item>
-        <item name="colorPrimaryVariant">@color/industrial_green_dark</item>
+        <item name="colorPrimaryVariant">@color/mine_warning</item>
         <item name="colorSecondary">@color/mine_warning</item>
         <item name="colorSurface">@color/mine_surface</item>
         <item name="colorOnSurface">@color/mine_text</item>
@@ -11,7 +11,7 @@
         <item name="android:textColorSecondary">@color/mine_text_secondary</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">@color/mine_status_surface</item>
+        <item name="android:statusBarColor">@color/mine_surface</item>
         <item name="android:navigationBarColor">@color/mine_background</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:colorAccent">@color/mine_positive</item>
@@ -32,6 +32,7 @@
 
     <style name="Theme.SensorMonitor.Normal" parent="Theme.SensorMonitor">
         <item name="colorPrimary">@color/normal_positive</item>
+        <item name="colorPrimaryVariant">@color/normal_positive</item>
         <item name="colorSecondary">@color/normal_warning</item>
         <item name="colorSurface">@color/normal_surface</item>
         <item name="colorOnSurface">@color/normal_text</item>

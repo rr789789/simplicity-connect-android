@@ -10,144 +10,246 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="56dp"
         android:background="?attr/appSurface"
-        android:paddingHorizontal="8dp"
-        android:subtitle="蓝牙接收器与传感器"
-        android:subtitleTextColor="?attr/appTextSecondary"
-        android:title="@string/app_name"
-        android:titleTextColor="?attr/appTextPrimary"
-        app:menu="@menu/main_menu" />
+        android:title="设备扫描"
+        android:titleTextColor="?attr/appTextPrimary" />
 
-    <LinearLayout
-        android:id="@+id/statusBar"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:background="@drawable/bg_status"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
-
-        <TextView
-            android:id="@+id/statusIcon"
-            android:layout_width="28dp"
-            android:layout_height="wrap_content"
-            android:text="●"
-            android:textColor="?attr/appPositive"
-            android:textSize="17sp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="12dp">
 
-            <TextView
-                android:id="@+id/statusTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="设备现场"
-                android:textColor="@android:color/white"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/statusDetail"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="等待扫描"
-                android:textColor="#C7D0CB"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/modeBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="30dp"
-            android:background="@drawable/bg_mode_badge"
-            android:gravity="center"
-            android:minWidth="70dp"
-            android:paddingHorizontal="8dp"
-            android:text="井下模式"
-            android:textColor="?attr/appPositive"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/deviceCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="0 台"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="10dp">
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            app:boxBackgroundColor="?attr/appSurface"
-            app:boxBackgroundMode="outline"
-            app:boxCornerRadiusBottomEnd="6dp"
-            app:boxCornerRadiusBottomStart="6dp"
-            app:boxCornerRadiusTopEnd="6dp"
-            app:boxCornerRadiusTopStart="6dp"
-            app:boxStrokeColor="?attr/appOutline"
-            app:startIconDrawable="@android:drawable/ic_menu_search"
-            app:startIconTint="?attr/appTextSecondary">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/search"
+            <LinearLayout
+                android:id="@+id/statusBar"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:hint="@string/search_hint"
-                android:imeOptions="actionSearch"
-                android:singleLine="true"
-                android:textColor="?attr/appTextPrimary"
-                android:textColorHint="?attr/appTextSecondary" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="14dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/scanButton"
-            android:layout_width="104dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="8dp"
-            android:text="@string/scan"
-            android:textStyle="bold"
-            app:cornerRadius="6dp"
-            app:icon="@android:drawable/stat_sys_data_bluetooth"
-            app:iconGravity="textStart" />
-    </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/empty"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:padding="32dp"
-        android:text="@string/no_devices"
-        android:textColor="?attr/appTextSecondary"
-        android:textSize="16sp" />
+                    <ImageButton
+                        android:id="@+id/settingsButton"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/bg_panel_raised"
+                        android:contentDescription="@string/settings"
+                        android:padding="8dp"
+                        android:src="@android:drawable/ic_menu_preferences"
+                        android:tint="?attr/appTextSecondary" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/deviceList"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingHorizontal="12dp"
-        android:paddingBottom="16dp" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/statusTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="现场总览"
+                            android:textColor="?attr/appTextPrimary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/statusDetail"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="扫描已停止 · 接收器 0 · 传感器 0"
+                            android:textColor="?attr/appTextSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/siteMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:background="@drawable/bg_mode_badge"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:minWidth="66dp"
+                        android:paddingHorizontal="8dp"
+                        android:text="客户模式"
+                        android:textColor="?attr/appPositive"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/scanButton"
+                        android:layout_width="72dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="6dp"
+                        android:minHeight="0dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="12dp"
+                        android:text="@string/scan"
+                        app:cornerRadius="8dp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="10dp"
+                    android:background="@drawable/bg_divider" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="3dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_panel_raised"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/receiverCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="接收器" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginHorizontal="3dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_panel_raised"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/pressureCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="压力" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginHorizontal="3dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_panel_raised"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/tiltCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="倾角" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="3dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_panel_raised"
+                        android:gravity="center"
+                        android:orientation="vertical">
+                        <TextView android:id="@+id/strongestRssi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="最强dBm" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/recentPanel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_panel_raised"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="10dp"
+                    android:visibility="gone">
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="最近接收器" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                        <TextView android:id="@+id/recentName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textColor="?attr/appTextPrimary" android:textSize="14sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/recentAddress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/recentEnter"
+                        android:layout_width="68dp"
+                        android:layout_height="40dp"
+                        android:minHeight="0dp"
+                        android:minWidth="0dp"
+                        android:text="进入"
+                        app:cornerRadius="8dp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="10dp"
+                    android:background="@drawable/bg_divider" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:boxBackgroundColor="?attr/appSurfaceRaised"
+                    app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusBottomEnd="7dp"
+                    app:boxCornerRadiusBottomStart="7dp"
+                    app:boxCornerRadiusTopEnd="7dp"
+                    app:boxCornerRadiusTopStart="7dp"
+                    app:boxStrokeColor="?attr/appOutline">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/search"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:hint="@string/search_hint"
+                        android:imeOptions="actionSearch"
+                        android:singleLine="true"
+                        android:textColor="?attr/appTextPrimary"
+                        android:textColorHint="?attr/appTextSecondary" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/receiverSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="接收器" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:id="@+id/receiverList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/pressureSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="压力传感器" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:id="@+id/pressureList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/tiltSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="倾角传感器" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:id="@+id/tiltList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/otherSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="其他传感器" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:id="@+id/otherList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/empty"
+                android:layout_width="match_parent"
+                android:layout_height="110dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_panel"
+                android:gravity="center"
+                android:text="点击扫描搜索设备"
+                android:textColor="?attr/appTextSecondary"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 </LinearLayout>

@@ -47,8 +47,25 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
     private var lastDataAt = 0L
     private var currentPhase = LinkPhase.IDLE
     private var negotiatedMtu = 23
+    private var discoveryStarted = false
     private val listeners = CopyOnWriteArraySet<Listener>()
     private var autoReconnect = true
+    private val connectionTimeout = Runnable {
+        val current = gatt ?: return@Runnable
+        if (currentPhase != LinkPhase.CONNECTING && currentPhase != LinkPhase.RECONNECTING) return@Runnable
+        current.close()
+        if (current === gatt) gatt = null
+        scheduleReconnect("连接超时")
+    }
+    private val discoveryTimeout = Runnable {
+        if (currentPhase != LinkPhase.DISCOVERING) return@Runnable
+        gatt?.let { current ->
+            runCatching { current.disconnect() }
+            current.close()
+        }
+        gatt = null
+        scheduleReconnect("服务发现超时")
+    }
 
     val activeDevice: DiscoveredDevice? get() = active
     val phase: LinkPhase get() = currentPhase
@@ -120,11 +137,15 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         }
         gatt = if (Build.VERSION.SDK_INT >= 23) remote.connectGatt(appContext, false, callback, BluetoothDevice.TRANSPORT_LE)
         else remote.connectGatt(appContext, false, callback)
+        handler.removeCallbacks(connectionTimeout)
+        handler.postDelayed(connectionTimeout, CONNECTION_TIMEOUT_MS)
     }
 
     fun disconnect(closeOnly: Boolean = false) {
         handler.removeCallbacks(staleCheck)
         handler.removeCallbacks(rssiCheck)
+        handler.removeCallbacks(connectionTimeout)
+        handler.removeCallbacks(discoveryTimeout)
         pending?.cancel()
         pending = null
         pendingUuid = null
@@ -186,15 +207,22 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         setPhase(LinkPhase.SUBSCRIBING)
         when (kind) {
             DeviceKind.RECEIVER -> {
-                subscribe(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STATUS)
-                delay(200)
-                subscribe(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STREAM)
-                delay(200)
-                subscribe(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_RESP)
-                runCatching { DeviceProtocol.parseStatus(read(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STATUS)) }
-                    .getOrNull()?.let { value -> listeners.forEach { it.onReceiverStatus(value) } }
+                subscribeIfPresent(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STATUS, "状态")
+                delay(300)
+                subscribeIfPresent(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STREAM, "数据流")
+                delay(300)
+                subscribeIfPresent(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_RESP, "应答")
+                if (hasCharacteristic(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STATUS)) {
+                    runCatching { DeviceProtocol.parseStatus(read(DeviceProtocol.RX_SERVICE, DeviceProtocol.RX_STATUS)) }
+                        .getOrNull()?.let { value -> listeners.forEach { it.onReceiverStatus(value) } }
+                }
             }
-            DeviceKind.PRESSURE, DeviceKind.TILT, DeviceKind.SENSOR -> subscribe(DeviceProtocol.SN_DATA_SERVICE, DeviceProtocol.SN_DATA)
+            DeviceKind.PRESSURE, DeviceKind.TILT, DeviceKind.SENSOR -> {
+                if (!hasCharacteristic(DeviceProtocol.SN_DATA_SERVICE, DeviceProtocol.SN_DATA)) {
+                    throw BleException("未发现传感器数据特征")
+                }
+                subscribe(DeviceProtocol.SN_DATA_SERVICE, DeviceProtocol.SN_DATA)
+            }
             DeviceKind.OTA -> Unit
         }
         reconnectAttempt = 0
@@ -204,6 +232,32 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         if (kind != DeviceKind.OTA) handler.post(staleCheck)
         handler.removeCallbacks(rssiCheck); handler.post(rssiCheck)
         audit.record("连接", "成功", active?.address, kind.name)
+    }
+
+    private suspend fun subscribeIfPresent(service: UUID, characteristic: UUID, label: String) {
+        if (!hasCharacteristic(service, characteristic)) {
+            audit.record("订阅", "跳过", active?.address, "$label 特征不存在")
+            return
+        }
+        runCatching { subscribe(service, characteristic) }
+            .onFailure { audit.record("订阅", "失败", active?.address, "$label: ${it.message}") }
+    }
+
+    private fun hasCharacteristic(service: UUID, characteristic: UUID): Boolean =
+        gatt?.getService(service)?.getCharacteristic(characteristic) != null
+
+    private fun beginServiceDiscovery(current: BluetoothGatt) {
+        if (current !== gatt || discoveryStarted) return
+        discoveryStarted = true
+        setPhase(LinkPhase.DISCOVERING)
+        handler.removeCallbacks(discoveryTimeout)
+        handler.postDelayed(discoveryTimeout, DISCOVERY_TIMEOUT_MS)
+        if (!current.discoverServices()) {
+            handler.removeCallbacks(discoveryTimeout)
+            discoveryStarted = false
+            setPhase(LinkPhase.FAULT, "无法启动服务发现")
+            scheduleReconnect("服务发现未启动")
+        }
     }
 
     private suspend fun awaitOperation(uuid: UUID, start: () -> Boolean): ByteArray {
@@ -260,12 +314,17 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
             if (current !== gatt) { current.close(); return }
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> if (status == BluetoothGatt.GATT_SUCCESS) {
-                    setPhase(LinkPhase.DISCOVERING)
+                    handler.removeCallbacks(connectionTimeout)
                     current.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-                    current.requestMtu(247)
-                    current.discoverServices()
+                    discoveryStarted = false
+                    negotiatedMtu = 23
+                    val mtuStarted = current.requestMtu(64)
+                    handler.postDelayed({ beginServiceDiscovery(current) }, if (mtuStarted) 1500 else 700)
                 } else scheduleReconnect("连接状态$status")
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    handler.removeCallbacks(connectionTimeout)
+                    handler.removeCallbacks(discoveryTimeout)
+                    discoveryStarted = false
                     current.close(); if (current === gatt) gatt = null
                     pending?.completeExceptionally(BleException("连接已断开")); pending = null
                     audit.record("断开", status.toString(), active?.address)
@@ -275,48 +334,22 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         }
 
         override fun onServicesDiscovered(current: BluetoothGatt, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) return scheduleReconnect("服务发现失败$status")
+            if (current !== gatt) { current.close(); return }
+            handler.removeCallbacks(discoveryTimeout)
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                current.close()
+                if (current === gatt) gatt = null
+                return scheduleReconnect("服务发现失败$status")
+            }
             val kind = active?.kind ?: return
-            val required = when (kind) {
-                DeviceKind.RECEIVER -> listOf(DeviceProtocol.RX_SERVICE)
-                DeviceKind.PRESSURE, DeviceKind.TILT, DeviceKind.SENSOR -> listOf(DeviceProtocol.SN_DATA_SERVICE, DeviceProtocol.SN_CONFIG_SERVICE)
-                DeviceKind.OTA -> listOf(DeviceProtocol.OTA_SERVICE)
-            }
-            if (required.any { current.getService(it) == null }) {
-                setPhase(LinkPhase.FAULT, "设备服务不完整")
-                audit.record("服务发现", "失败", active?.address, "required=$required")
-                return
-            }
-            val requiredCharacteristics = when (kind) {
-                DeviceKind.RECEIVER -> listOf(
-                    DeviceProtocol.RX_SERVICE to DeviceProtocol.RX_CMD,
-                    DeviceProtocol.RX_SERVICE to DeviceProtocol.RX_RESP,
-                    DeviceProtocol.RX_SERVICE to DeviceProtocol.RX_STREAM,
-                    DeviceProtocol.RX_SERVICE to DeviceProtocol.RX_STATUS
-                )
-                DeviceKind.PRESSURE, DeviceKind.TILT, DeviceKind.SENSOR -> listOf(
-                    DeviceProtocol.SN_DATA_SERVICE to DeviceProtocol.SN_DATA,
-                    DeviceProtocol.SN_CONFIG_SERVICE to DeviceProtocol.SN_RATE,
-                    DeviceProtocol.SN_CONFIG_SERVICE to DeviceProtocol.SN_MAC,
-                    DeviceProtocol.SN_CONFIG_SERVICE to DeviceProtocol.SN_INFO,
-                    DeviceProtocol.SN_CONFIG_SERVICE to DeviceProtocol.SN_POWER_MODE
-                )
-                DeviceKind.OTA -> listOf(
-                    DeviceProtocol.OTA_SERVICE to DeviceProtocol.OTA_CONTROL,
-                    DeviceProtocol.OTA_SERVICE to DeviceProtocol.OTA_DATA
-                )
-            }
-            val missing = requiredCharacteristics.filter { (service, characteristic) ->
-                current.getService(service)?.getCharacteristic(characteristic) == null
-            }
-            if (missing.isNotEmpty()) {
-                setPhase(LinkPhase.FAULT, "设备特征不完整")
-                audit.record("服务发现", "失败", active?.address, "missing=$missing")
-                return
-            }
+            val services = current.services.map { it.uuid }
+            audit.record("服务发现", "完成", active?.address, services.joinToString())
             scope.launch { runCatching { initialize(kind) }.onFailure {
                 setPhase(LinkPhase.FAULT, it.message ?: "初始化失败")
                 audit.record("初始化", "失败", active?.address, it.message)
+                current.close()
+                if (current === gatt) gatt = null
+                scheduleReconnect("初始化失败")
             } }
         }
 
@@ -335,7 +368,9 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         }
 
         override fun onMtuChanged(current: BluetoothGatt, mtu: Int, status: Int) {
+            if (current !== gatt) return
             if (status == BluetoothGatt.GATT_SUCCESS) negotiatedMtu = mtu
+            handler.postDelayed({ beginServiceDiscovery(current) }, 700)
         }
     }
 
@@ -354,6 +389,8 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
 
     companion object {
         private const val OPERATION_TIMEOUT_MS = 4000L
+        private const val CONNECTION_TIMEOUT_MS = 10_000L
+        private const val DISCOVERY_TIMEOUT_MS = 8_000L
         private const val STALE_MS = 5000L
     }
 }

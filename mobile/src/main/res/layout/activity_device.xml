@@ -10,7 +10,7 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="56dp"
         android:background="?attr/appSurface"
         android:subtitleTextColor="?attr/appTextSecondary"
         android:titleTextColor="?attr/appTextPrimary"
@@ -21,8 +21,8 @@
     <LinearLayout
         android:id="@+id/statusBar"
         android:layout_width="match_parent"
-        android:layout_height="66dp"
-        android:background="@drawable/bg_status"
+        android:layout_height="64dp"
+        android:background="?attr/appSurface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
@@ -46,7 +46,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="连接中"
-                android:textColor="@android:color/white"
+                android:textColor="?attr/appTextPrimary"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -57,7 +57,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#C7D0CB"
+                android:textColor="?attr/appTextSecondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -90,7 +90,7 @@
             <LinearLayout
                 android:id="@+id/summary"
                 android:layout_width="match_parent"
-                android:layout_height="96dp"
+                android:layout_height="88dp"
                 android:background="@drawable/bg_panel"
                 android:gravity="center"
                 android:orientation="horizontal"
@@ -104,9 +104,10 @@
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/summaryLabel1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="当前读数"
+                        android:text="绑定"
                         android:textColor="?attr/appTextSecondary"
                         android:textSize="11sp" />
 
@@ -117,16 +118,11 @@
                         android:layout_marginTop="3dp"
                         android:gravity="center"
                         android:maxLines="1"
-                        android:text="等待数据"
+                        android:text="0"
                         android:textColor="?attr/appTextPrimary"
-                        android:textSize="25sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
                 </LinearLayout>
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="52dp"
-                    android:background="?attr/appOutline" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -136,9 +132,10 @@
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/summaryLabel2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="设备概况"
+                        android:text="在线"
                         android:textColor="?attr/appTextSecondary"
                         android:textSize="11sp" />
 
@@ -149,9 +146,65 @@
                         android:layout_marginTop="5dp"
                         android:gravity="center"
                         android:maxLines="1"
-                        android:text="-- V"
-                        android:textColor="?attr/appPositive"
-                        android:textSize="17sp"
+                        android:text="0"
+                        android:textColor="?attr/appTextPrimary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/summaryLabel3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="异常"
+                        android:textColor="?attr/appTextSecondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tertiaryValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="0"
+                        android:textColor="?attr/appTextPrimary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/summaryLabel4"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="低电"
+                        android:textColor="?attr/appTextSecondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/quaternaryValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="0"
+                        android:textColor="?attr/appTextPrimary"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
                 </LinearLayout>
             </LinearLayout>

@@ -20,9 +20,13 @@ class DeviceAdapter(private val onClick: (DiscoveredDevice) -> Unit) : RecyclerV
         fun bind(device: DiscoveredDevice) = with(binding) {
             name.text = device.name.ifBlank { kindName(device.kind) }
             address.text = "${kindName(device.kind)} · ${device.address}"
-            rssi.text = device.rssi.toString()
+            rssi.text = "${device.rssi} dBm"
             kind.text = when (device.kind) { DeviceKind.RECEIVER -> "收"; DeviceKind.PRESSURE -> "压"; DeviceKind.TILT -> "倾"; else -> "感" }
             kind.backgroundTintList = ColorStateList.valueOf(root.context.themeColor(if (device.rssi >= -80) R.attr.appPositive else R.attr.appWarning))
+            val level = when { device.rssi >= -55 -> 4; device.rssi >= -67 -> 3; device.rssi >= -80 -> 2; else -> 1 }
+            listOf(bar1, bar2, bar3, bar4).forEachIndexed { index, bar ->
+                bar.backgroundTintList = ColorStateList.valueOf(root.context.getColor(if (index < level) R.color.signal_green else R.color.industrial_line))
+            }
             root.setOnClickListener { onClick(device) }
         }
     }

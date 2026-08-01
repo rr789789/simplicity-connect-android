@@ -82,13 +82,14 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             } else false
         }
         slotAdapter = SlotAdapter(::onSlotClicked)
-        binding.slotList.layoutManager = GridLayoutManager(this, if (resources.configuration.smallestScreenWidthDp >= 600) 2 else 1)
+        binding.slotList.layoutManager = GridLayoutManager(this, 2)
         binding.slotList.adapter = slotAdapter
         val receiver = kind == DeviceKind.RECEIVER
         binding.slotList.visibility = if (receiver) View.VISIBLE else View.GONE
         binding.sensorPanel.visibility = if (receiver) View.GONE else View.VISIBLE
         binding.powerMode.visibility = if (receiver) View.GONE else View.VISIBLE
         binding.markZero.visibility = if (kind == DeviceKind.PRESSURE || receiver) View.GONE else View.VISIBLE
+        renderSummary()
         binding.readConfig.setOnClickListener { if (receiver) readAllConfiguration() else readSensorConfiguration(true) }
         binding.editBindings.setOnClickListener { if (receiver) selectSlotToEdit() else showChangeMac() }
         binding.slowRate.setOnClickListener { setSensorRate(false) }
@@ -98,6 +99,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.danger.setOnClickListener { showDangerActions() }
         binding.ota.setOnClickListener { chooseOtaSource() }
         binding.maintainer.setOnClickListener { if (maintenance) leaveMaintenance() else requestMaintenance() }
+        if (app.preferences.maintenanceMode) enterMaintenance()
     }
 
     override fun onStart() {
@@ -117,13 +119,13 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.statusIcon.setTextColor(themeColor(color))
         if (phase == LinkPhase.ONLINE && device.kind != DeviceKind.RECEIVER && sensorInfo == null) readSensorConfiguration(false)
         markStale(phase == LinkPhase.STALE)
+        renderSummary()
     }
     override fun onRssi(rssi: Int) { currentRssi = rssi; binding.rssi.text = "$rssi dBm" }
     override fun onReceiverStatus(status: ReceiverStatus) {
         receiverStatus = status
         for (i in slots.indices) slots[i] = slots[i].copy(fast = status.fastMask and (1 shl i) != 0)
-        binding.primaryValue.text = "ID ${status.receiverId}"
-        binding.secondaryValue.text = "绑定 ${Integer.bitCount(status.boundMask)} · 在线 ${Integer.bitCount(status.onlineMask)}"
+        renderSummary()
         submitSlots()
     }
     override fun onStream(reading: StreamReading) {
@@ -132,6 +134,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         lifecycleScope.launch(Dispatchers.IO) { app.history.add(device.address, reading.slot, old.binding?.type ?: old.info?.sensorType ?: 0, reading.payload) }
         evaluateAlarm(reading.slot, if ((old.binding?.type ?: old.info?.sensorType) == DeviceProtocol.TYPE_TILT) reading.payload.xAngle / 10.0 else reading.payload.pressure / 10.0)
         submitSlots()
+        renderSummary()
     }
     override fun onReceiverResponse(response: ReceiverResponse) {
         responseWaiter?.takeIf { it.opcode == response.opcode && (it.slot == null || it.slot == response.slot) }?.let {
@@ -231,13 +234,43 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private fun renderSensor() {
         val payload = sensorPayload
         val info = sensorInfo
-        if (payload != null) {
+        val liveValue = if (payload != null) {
             val (zx, zy) = app.preferences.tiltZero(device.address)
-            binding.primaryValue.text = if (info?.sensorType == DeviceProtocol.TYPE_PRESSURE || device.kind == DeviceKind.PRESSURE) "%.2f MPa".format(payload.pressure / 10.0)
+            if (info?.sensorType == DeviceProtocol.TYPE_PRESSURE || device.kind == DeviceKind.PRESSURE) "%.2f MPa".format(payload.pressure / 10.0)
             else "X %.1f°  Y %.1f°".format((payload.xAngle - zx) / 10.0, (payload.yAngle - zy) / 10.0)
-            binding.secondaryValue.text = DeviceProtocol.voltage(payload, info)?.let { "%.1f V".format(it) } ?: "-- V"
+        } else "等待实时数据"
+        binding.sensorInfo.text = "$liveValue\n类型 ${when (info?.sensorType) { 1 -> "压力"; 2 -> "倾角"; else -> "待识别" }}\n固件协议 V${info?.version ?: "--"} · ${if (info?.powerMode == 1) "低功耗" else "普通模式"}\n工作 ${info?.workSeconds ?: "--"} 秒 · 错误 ${info?.errors ?: "--"}\nRaw ${payload?.raw ?: "--"} · PA5 ${payload?.pa5?.let { if (it) "高" else "低" } ?: "--"}"
+        renderSummary()
+    }
+
+    private fun renderSummary() {
+        if (device.kind == DeviceKind.RECEIVER) {
+            val status = receiverStatus
+            val bound = status?.let { Integer.bitCount(it.boundMask) } ?: 0
+            val online = status?.let { Integer.bitCount(it.onlineMask) } ?: 0
+            val valid = status?.let { Integer.bitCount(it.validMask) } ?: 0
+            val lowVoltage = slots.count { slot ->
+                DeviceProtocol.voltage(slot.reading ?: return@count false, slot.info)?.let { it > 0.0 && it < 3.3 } == true
+            }
+            binding.summaryLabel1.text = "绑定"
+            binding.summaryLabel2.text = "在线"
+            binding.summaryLabel3.text = "异常"
+            binding.summaryLabel4.text = "低电"
+            binding.primaryValue.text = bound.toString()
+            binding.secondaryValue.text = online.toString()
+            binding.tertiaryValue.text = ((bound - online).coerceAtLeast(0) + (online - valid).coerceAtLeast(0)).toString()
+            binding.quaternaryValue.text = lowVoltage.toString()
+        } else {
+            val online = app.ble.phase == LinkPhase.ONLINE || app.ble.phase == LinkPhase.STALE
+            binding.summaryLabel1.text = "连接"
+            binding.summaryLabel2.text = "电压"
+            binding.summaryLabel3.text = "模式"
+            binding.summaryLabel4.text = "PA5"
+            binding.primaryValue.text = if (online) "在线" else "离线"
+            binding.secondaryValue.text = sensorPayload?.let { DeviceProtocol.voltage(it, sensorInfo) }?.let { "%.1fV".format(it) } ?: "--"
+            binding.tertiaryValue.text = if (sensorInfo?.powerMode == 1) "低功耗" else "普通"
+            binding.quaternaryValue.text = sensorPayload?.pa5?.let { if (it) "高" else "低" } ?: "--"
         }
-        binding.sensorInfo.text = "类型 ${when (info?.sensorType) { 1 -> "压力"; 2 -> "倾角"; else -> "待识别" }}\n固件协议 V${info?.version ?: "--"} · ${if (info?.powerMode == 1) "低功耗" else "普通模式"}\n工作 ${info?.workSeconds ?: "--"} 秒 · 错误 ${info?.errors ?: "--"}\nRaw ${payload?.raw ?: "--"} · PA5 ${payload?.pa5?.let { if (it) "高" else "低" } ?: "--"}"
     }
 
     private fun showDangerActions() {
@@ -301,8 +334,8 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         val dialog = MaterialAlertDialogBuilder(this).setTitle("首次使用必须修改默认密码").setView(input).setCancelable(false).setPositiveButton("保存", null).create()
         dialog.setOnShowListener { dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { runCatching { app.preferences.changePassword(input.text.toString().toCharArray()) }.onSuccess { dialog.dismiss(); enterMaintenance() }.onFailure { toast(it.message ?: "密码无效") } } }; dialog.show()
     }
-    private fun enterMaintenance() { maintenance = true; binding.maintenancePanel.visibility = View.VISIBLE; binding.maintainer.text = "退出维护模式"; slotAdapter.maintenance = true; slotAdapter.notifyDataSetChanged(); app.audit.record("维护模式", "进入", device.address) }
-    private fun leaveMaintenance() { maintenance = false; binding.maintenancePanel.visibility = View.GONE; binding.maintainer.text = "进入维护模式"; slotAdapter.maintenance = false; slotAdapter.notifyDataSetChanged() }
+    private fun enterMaintenance() { maintenance = true; app.preferences.maintenanceMode = true; binding.maintenancePanel.visibility = View.VISIBLE; binding.maintainer.text = "退出维护模式"; slotAdapter.maintenance = true; slotAdapter.notifyDataSetChanged(); app.audit.record("维护模式", "进入", device.address) }
+    private fun leaveMaintenance() { maintenance = false; app.preferences.maintenanceMode = false; binding.maintenancePanel.visibility = View.GONE; binding.maintainer.text = "进入维护模式"; slotAdapter.maintenance = false; slotAdapter.notifyDataSetChanged() }
     private fun requireMaintenance(): Boolean { if (!maintenance) toast("请先进入维护模式"); return maintenance }
 
     private fun submitSlots() = slotAdapter.submit(slots.toList())

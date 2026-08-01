@@ -18,7 +18,11 @@ class PreferencesStore(context: Context) {
         get() = prefs.getBoolean("mine_mode", true)
         set(value) = prefs.edit().putBoolean("mine_mode", value).apply()
 
-    fun saveRecent(address: String, name: String) {
+    var maintenanceMode: Boolean
+        get() = prefs.getBoolean("site_maintenance", false)
+        set(value) = prefs.edit().putBoolean("site_maintenance", value).apply()
+
+    fun saveRecentReceiver(address: String, name: String) {
         prefs.edit().putString("recent_address", address).putString("recent_name", name).apply()
     }
 
