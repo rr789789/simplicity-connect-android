@@ -1,8 +1,11 @@
 package com.zg.sensormonitor.ui
 
 import android.os.Bundle
+import android.view.View
 import androidx.annotation.AttrRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.zg.sensormonitor.R
 
 abstract class ThemedActivity : AppCompatActivity() {
@@ -17,6 +20,27 @@ abstract class ThemedActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (preferredMineMode() != appliedMineMode) recreate()
+    }
+
+    override fun setContentView(view: View?) {
+        super.setContentView(view)
+        view?.let { applySystemBarInsets(it) }
+    }
+
+    private fun applySystemBarInsets(root: View) {
+        val startTop = root.paddingTop
+        val startBottom = root.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(root) { target, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            target.setPadding(
+                target.paddingLeft,
+                startTop + bars.top,
+                target.paddingRight,
+                startBottom + bars.bottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
     }
 
     private fun preferredMineMode(): Boolean =

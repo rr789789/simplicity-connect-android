@@ -47,6 +47,12 @@ class MainActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.scanButton.setOnClickListener { if (scanning) app.ble.stopScan() else ensurePermissions() }
         binding.settingsButton.setOnClickListener { showScanSettings() }
         binding.siteMode.setOnClickListener { toggleSiteMode() }
+        binding.themeSwitch.setOnCheckedChangeListener { _, checked ->
+            if (app.preferences.mineMode != checked) {
+                app.preferences.mineMode = checked
+                recreate()
+            }
+        }
         binding.search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = refresh()
@@ -57,6 +63,7 @@ class MainActivity : ThemedActivity(), BleCentralManager.Listener {
     override fun onResume() {
         super.onResume()
         app.ble.addListener(this)
+        renderThemeSwitch()
         renderSiteMode()
         renderRecentReceiver()
         ensurePermissions()
@@ -171,8 +178,21 @@ class MainActivity : ThemedActivity(), BleCentralManager.Listener {
     private fun renderSiteMode() {
         val maintenance = app.preferences.maintenanceMode
         binding.siteMode.text = if (maintenance) "维护模式" else "客户模式"
-        binding.siteMode.backgroundTintList = ColorStateList.valueOf(getColor(if (maintenance) R.color.mine_warning else R.color.normal_surface_raised))
-        binding.siteMode.setTextColor(getColor(if (maintenance) R.color.normal_warning else R.color.normal_text))
+        binding.siteMode.backgroundTintList = ColorStateList.valueOf(themeColor(if (maintenance) R.attr.appWarning else R.attr.appSurfaceRaised))
+        binding.siteMode.setTextColor(themeColor(if (maintenance) R.attr.appBackground else R.attr.appTextPrimary))
+    }
+
+    private fun renderThemeSwitch() {
+        binding.themeSwitch.setOnCheckedChangeListener(null)
+        binding.themeSwitch.isChecked = app.preferences.mineMode
+        binding.themeSwitch.text = if (app.preferences.mineMode) "暗色" else "亮色"
+        binding.themeSwitch.setTextColor(themeColor(R.attr.appTextPrimary))
+        binding.themeSwitch.setOnCheckedChangeListener { _, checked ->
+            if (app.preferences.mineMode != checked) {
+                app.preferences.mineMode = checked
+                recreate()
+            }
+        }
     }
 
     private fun toggleSiteMode() {

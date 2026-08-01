@@ -11,6 +11,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -138,10 +140,22 @@ class OtaEngine(
     }
 
     private fun load(source: FirmwareSource): ByteArray = when (source) {
-        is FirmwareSource.Local -> context.contentResolver.openInputStream(source.uri)?.use { input ->
-            readLimited(input.readBytes())
-        } ?: error("无法读取本地固件")
+        is FirmwareSource.Local -> loadLocal(source.uri)
         is FirmwareSource.Https -> download(source.url)
+    }
+
+    private fun loadLocal(uri: Uri): ByteArray {
+        val resolver = context.contentResolver
+        val fromStream = runCatching {
+            resolver.openInputStream(uri)?.use { readLimited(readAll(it)) }
+        }.getOrNull()
+        if (fromStream != null) return fromStream
+        val fromDescriptor = runCatching {
+            resolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                java.io.FileInputStream(descriptor.fileDescriptor).use { readLimited(readAll(it)) }
+            }
+        }.getOrNull()
+        return fromDescriptor ?: error("无法读取本地固件，请把 .gbl 文件放到“下载”目录后重新选择")
     }
 
     private fun download(value: String): ByteArray {
@@ -168,6 +182,20 @@ class OtaEngine(
     private fun readLimited(bytes: ByteArray): ByteArray {
         require(bytes.size <= MAX_FIRMWARE_SIZE) { "固件超过允许大小" }
         return bytes
+    }
+
+    private fun readAll(input: InputStream): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(16 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            require(total <= MAX_FIRMWARE_SIZE) { "固件超过允许大小" }
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray()
     }
 
     companion object {

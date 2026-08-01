@@ -8,8 +8,8 @@
     <color name="industrial_surface">#FFFFFF</color>
     <color name="industrial_background">#F3F5F6</color>
     <color name="industrial_line">#D6DBDF</color>
-    <color name="mine_background">#05070A</color>
-    <color name="mine_surface">#111827</color>
+    <color name="mine_background">#0B1220</color>
+    <color name="mine_surface">#172033</color>
     <color name="mine_text">#F8FAFC</color>
     <color name="normal_background">#EEF1F5</color>
     <color name="normal_surface">#FFFFFF</color>
@@ -24,12 +24,12 @@
     <color name="normal_tint_soft">#DBEAFE</color>
     <color name="sensor_teal">#0D9488</color>
     <color name="signal_green">#16A34A</color>
-    <color name="mine_surface_raised">#020617</color>
-    <color name="mine_text_secondary">#CBD5E1</color>
-    <color name="mine_outline">#334155</color>
-    <color name="mine_status_surface">#111827</color>
-    <color name="mine_positive">#FACC15</color>
-    <color name="mine_warning">#FDE68A</color>
+    <color name="mine_surface_raised">#243047</color>
+    <color name="mine_text_secondary">#D7E0EC</color>
+    <color name="mine_outline">#526176</color>
+    <color name="mine_status_surface">#1D2940</color>
+    <color name="mine_positive">#F6D84A</color>
+    <color name="mine_warning">#F7C96B</color>
     <color name="mine_danger">#FECACA</color>
-    <color name="mine_tint_soft">#334155</color>
+    <color name="mine_tint_soft">#303B56</color>
 </resources>

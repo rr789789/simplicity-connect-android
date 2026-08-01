@@ -92,6 +92,17 @@
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/themeSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="6dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="0dp"
+                        android:text="暗色"
+                        android:textColor="?attr/appTextPrimary"
+                        android:textSize="12sp" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/scanButton"
                         android:layout_width="72dp"

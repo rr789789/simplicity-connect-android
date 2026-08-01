@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
+import android.view.ViewGroup
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,6 +71,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     }
     private val firmwarePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let {
+            runCatching { contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             pendingFirmwareSource = FirmwareSource.Local(it)
             binding.firmwareUrl.setText("")
             binding.otaStatus.text = "已选择本地固件"
@@ -240,7 +242,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private fun showBindingEditor(slot: Int) {
         val positions = positionOptions()
         val container = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 8, 48, 0) }
-        val spinner = Spinner(this).apply { adapter = ArrayAdapter(this@DeviceActivity, android.R.layout.simple_spinner_dropdown_item, positions.map { it.label }) }
+        val spinner = Spinner(this).apply { adapter = positionAdapter(positions.map { it.label }) }
         val mac = EditText(this).apply { hint = "AA:BB:CC:DD:EE:FF"; setText(slots[slot].binding?.mac.orEmpty()); inputType = InputType.TYPE_CLASS_TEXT }
         val scan = Button(this).apply { text = "扫描二维码"; setOnClickListener { pendingMacInput = mac; qrLauncher.launch(null) } }
         container.addView(spinner); container.addView(mac); container.addView(scan)
@@ -300,7 +302,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
                 textSize = 13f
             }
             val spinner = Spinner(this).apply {
-                adapter = ArrayAdapter(this@DeviceActivity, android.R.layout.simple_spinner_dropdown_item, options.map { it.label })
+                adapter = positionAdapter(options.map { it.label })
                 val selected = slot.binding?.let { binding -> options.indexOfFirst { it.type == binding.type && it.id == binding.sensorId } } ?: 0
                 setSelection(selected.coerceAtLeast(0))
                 background = ContextCompat.getDrawable(this@DeviceActivity, R.drawable.bg_panel_raised)
@@ -319,6 +321,8 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             val scan = Button(this).apply {
                 text = "扫"
                 textSize = 12f
+                setTextColor(themeColor(R.attr.appTextPrimary))
+                backgroundTintList = ColorStateList.valueOf(themeColor(R.attr.appSurfaceRaised))
                 minWidth = 0
                 minHeight = 0
                 setPadding(0, 0, 0, 0)
@@ -378,6 +382,22 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private fun positionAdapter(labels: List<String>) = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, labels) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            return super.getView(position, convertView, parent).also { view ->
+                (view as? TextView)?.setTextColor(themeColor(R.attr.appTextPrimary))
+                view.setBackgroundColor(themeColor(R.attr.appSurfaceRaised))
+            }
+        }
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+            return super.getDropDownView(position, convertView, parent).also { view ->
+                (view as? TextView)?.setTextColor(themeColor(R.attr.appTextPrimary))
+                view.setBackgroundColor(themeColor(R.attr.appSurfaceRaised))
+            }
+        }
+    }
 
     private fun readSensorConfiguration(showResult: Boolean) = lifecycleScope.launch {
         runCatching {
