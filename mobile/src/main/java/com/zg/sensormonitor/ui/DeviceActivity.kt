@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -43,6 +44,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private var currentRssi: Int? = null
     private var responseWaiter: ResponseWaiter? = null
     private var pendingMacInput: EditText? = null
+    private var pendingFirmwareSource: FirmwareSource? = null
     private val bindingEditors = linkedMapOf<Int, Pair<Spinner, EditText>>()
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val ageRefresh = object : Runnable {
@@ -65,7 +67,11 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         }
     }
     private val firmwarePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        uri?.let { beginOta(FirmwareSource.Local(it)) }
+        uri?.let {
+            pendingFirmwareSource = FirmwareSource.Local(it)
+            binding.firmwareUrl.setText("")
+            binding.otaStatus.text = "已选择本地固件"
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,6 +104,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.readConfig.setOnClickListener { if (receiver) readAllConfiguration() else readSensorConfiguration(true) }
         binding.readSensorInfo.setOnClickListener { readSensorConfiguration(true) }
         binding.refreshData.setOnClickListener { app.ble.refreshSubscriptions() }
+        binding.readConfigBinding.setOnClickListener { readAllConfiguration() }
         binding.editBindings.setOnClickListener { scanNextBinding() }
         binding.submitBindings.setOnClickListener { submitBindingEditors() }
         binding.slowRate.setOnClickListener { setSensorRate(false) }
@@ -109,7 +116,8 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
         binding.writeMac.setOnClickListener { writeMacFromInput() }
         binding.danger.setOnClickListener { showSetReceiverId() }
         binding.clearAllButton.setOnClickListener { clearAll() }
-        binding.ota.setOnClickListener { chooseOtaSource() }
+        binding.chooseFirmware.setOnClickListener { chooseLocalFirmware() }
+        binding.ota.setOnClickListener { startSelectedOta() }
         binding.siteMode.setOnClickListener { if (maintenance) leaveMaintenance() else requestMaintenance() }
         binding.maintainer.visibility = View.GONE
         if (app.preferences.maintenanceMode) enterMaintenance()
@@ -214,6 +222,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     }
 
     private fun saveBinding(slot: Int, position: PositionOption, macText: String) = lifecycleScope.launch {
+        if (position.type == 0 || position.id == 0) return@launch toast("请选择传感器位置")
         val mac = DeviceProtocol.parseMac(macText) ?: return@launch toast("MAC格式错误")
         if (slots.any { it.slot != slot && it.binding?.mac.equals(DeviceProtocol.bytesToMac(mac), true) }) return@launch toast("MAC已绑定到其他槽位")
         if (slots.any { item -> item.slot != slot && item.binding?.let { it.type == position.type && it.sensorId == position.id } == true }) return@launch toast("该位置已被其他槽位使用")
@@ -252,35 +261,43 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(0, 3, 0, 3)
+                setPadding(0, dp(3), 0, dp(3))
             }
             val number = TextView(this).apply {
                 text = "${slot.slot + 1}"
                 gravity = android.view.Gravity.CENTER
                 setTextColor(themeColor(R.attr.appTextSecondary))
+                textSize = 13f
             }
             val spinner = Spinner(this).apply {
                 adapter = ArrayAdapter(this@DeviceActivity, android.R.layout.simple_spinner_dropdown_item, options.map { it.label })
                 val selected = slot.binding?.let { binding -> options.indexOfFirst { it.type == binding.type && it.id == binding.sensorId } } ?: 0
                 setSelection(selected.coerceAtLeast(0))
+                background = ContextCompat.getDrawable(this@DeviceActivity, R.drawable.bg_panel_raised)
+                setPadding(dp(6), 0, dp(6), 0)
             }
             val mac = EditText(this).apply {
                 hint = "AA:BB:CC:DD:EE:FF"
                 setText(slot.binding?.mac.orEmpty())
-                textSize = 12f
+                textSize = 13f
                 isSingleLine = true
+                background = ContextCompat.getDrawable(this@DeviceActivity, R.drawable.bg_panel_raised)
+                setPadding(dp(8), 0, dp(8), 0)
                 setTextColor(themeColor(R.attr.appTextPrimary))
                 setHintTextColor(themeColor(R.attr.appTextSecondary))
             }
             val scan = Button(this).apply {
                 text = "扫"
                 textSize = 12f
+                minWidth = 0
+                minHeight = 0
+                setPadding(0, 0, 0, 0)
                 setOnClickListener { pendingMacInput = mac; qrLauncher.launch(null) }
             }
-            row.addView(number, LinearLayout.LayoutParams(dp(28), dp(46)))
-            row.addView(spinner, LinearLayout.LayoutParams(dp(112), dp(46)))
+            row.addView(number, LinearLayout.LayoutParams(dp(30), dp(46)))
+            row.addView(spinner, LinearLayout.LayoutParams(dp(110), dp(46)))
             row.addView(mac, LinearLayout.LayoutParams(0, dp(46), 1f))
-            row.addView(scan, LinearLayout.LayoutParams(dp(48), dp(46)))
+            row.addView(scan, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(4) })
             binding.bindingRows.addView(row)
             bindingEditors[slot.slot] = spinner to mac
         }
@@ -295,6 +312,21 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private fun submitBindingEditors() = lifecycleScope.launch {
         val options = positionOptions()
         runOperation("下发绑定") {
+            val positionSlots = linkedMapOf<String, Int>()
+            val macSlots = linkedMapOf<String, Int>()
+            bindingEditors.forEach { (slot, controls) ->
+                val macText = controls.second.text.toString().trim()
+                if (macText.isBlank()) return@forEach
+                val mac = DeviceProtocol.parseMac(macText) ?: error("槽 ${slot + 1} MAC格式错误")
+                val position = options[controls.first.selectedItemPosition]
+                if (position.type == 0 || position.id == 0) error("槽 ${slot + 1} 请选择传感器位置")
+                val positionKey = "${position.type}:${position.id}"
+                positionSlots[positionKey]?.let { error("槽 ${it + 1} 和槽 ${slot + 1}: 传感器位置重复") }
+                positionSlots[positionKey] = slot
+                val normalizedMac = DeviceProtocol.bytesToMac(mac)
+                macSlots[normalizedMac]?.let { error("槽 ${it + 1} 和槽 ${slot + 1}: MAC重复") }
+                macSlots[normalizedMac] = slot
+            }
             bindingEditors.forEach { (slot, controls) ->
                 val text = controls.second.text.toString().trim()
                 if (text.isBlank()) {
@@ -427,6 +459,22 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     }
     private fun sleepSensor() = lifecycleScope.launch { confirm("进入休眠", "设备将进入EM4并断开，需要外部唤醒源恢复") { runOperation("进入休眠") { app.ble.write(DeviceProtocol.SN_CONFIG_SERVICE, DeviceProtocol.SN_RATE, byteArrayOf(2)); app.audit.record("休眠", "已发送", device.address) } } }
 
+    private fun chooseLocalFirmware() {
+        if (!requireMaintenance()) return
+        firmwarePicker.launch(arrayOf("application/octet-stream", "*/*"))
+    }
+
+    private fun startSelectedOta() {
+        if (!requireMaintenance()) return
+        val typedUrl = binding.firmwareUrl.text?.toString()?.trim().orEmpty()
+        val source = if (typedUrl.isNotBlank()) FirmwareSource.Https(typedUrl) else pendingFirmwareSource
+        if (source == null) {
+            toast("请选择本地GBL或填写HTTPS地址")
+            return
+        }
+        beginOta(source)
+    }
+
     private fun chooseOtaSource() {
         if (!requireMaintenance()) return
         MaterialAlertDialogBuilder(this).setTitle("固件来源").setItems(arrayOf("本地GBL文件", "HTTPS地址")) { _, which ->
@@ -506,7 +554,9 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
     private fun positionOptions(): List<PositionOption> {
         val pressure = listOf("立柱前左", "立柱前右", "立柱后左", "立柱后右", "一级护帮", "二级护帮", "三级护帮", "前梁", "伸缩梁", "平衡上腔", "平衡下腔")
         val tilt = listOf("底座", "顶梁", "前连杆", "一级护帮", "二级护帮", "三级护帮", "前梁", "尾梁", "掩护梁")
-        return pressure.mapIndexed { i, s -> PositionOption(DeviceProtocol.TYPE_PRESSURE, i + 1, "压力-$s") } + tilt.mapIndexed { i, s -> PositionOption(DeviceProtocol.TYPE_TILT, i + 1, "倾角-$s") }
+        return listOf(PositionOption(0, 0, "选择")) +
+            pressure.mapIndexed { i, s -> PositionOption(DeviceProtocol.TYPE_PRESSURE, i + 1, "压力-$s") } +
+            tilt.mapIndexed { i, s -> PositionOption(DeviceProtocol.TYPE_TILT, i + 1, "倾角-$s") }
     }
 
     data class ResponseWaiter(val opcode: Int, val slot: Int?, val deferred: CompletableDeferred<ReceiverResponse>)

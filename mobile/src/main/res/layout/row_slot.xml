@@ -2,7 +2,7 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="174dp"
+    android:layout_height="wrap_content"
     android:layout_margin="4dp"
     android:clickable="true"
     android:focusable="true"
@@ -62,26 +62,32 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/value"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="41dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="6dp"
             android:gravity="center_vertical"
-            android:maxLines="1"
-            android:text="--"
-            android:textColor="?attr/appTextPrimary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/position"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="未配置位置"
-            android:textColor="?attr/appTextSecondary"
-            android:textSize="12sp" />
+            <TextView
+                android:id="@+id/value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="--"
+                android:textColor="?attr/appTextPrimary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/updated"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="无数据"
+                android:textColor="?attr/appTextSecondary"
+                android:textSize="11sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/diagnostics"
@@ -95,13 +101,48 @@
             android:textSize="12sp" />
 
         <TextView
-            android:id="@+id/updated"
+            android:id="@+id/raw"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="bottom|end"
-            android:text="无数据"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Raw --"
             android:textColor="?attr/appTextSecondary"
-            android:textSize="11sp" />
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/bindingFoot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:orientation="vertical">
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@drawable/bg_divider" />
+
+            <TextView
+                android:id="@+id/position"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="未配置位置"
+                android:textColor="?attr/appTextPrimary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/mac"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="?attr/appTextSecondary"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
