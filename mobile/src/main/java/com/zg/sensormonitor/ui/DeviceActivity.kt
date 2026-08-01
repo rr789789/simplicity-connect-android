@@ -268,7 +268,7 @@ class DeviceActivity : ThemedActivity(), BleCentralManager.Listener {
                 hint = "AA:BB:CC:DD:EE:FF"
                 setText(slot.binding?.mac.orEmpty())
                 textSize = 12f
-                singleLine = true
+                isSingleLine = true
                 setTextColor(themeColor(R.attr.appTextPrimary))
                 setHintTextColor(themeColor(R.attr.appTextSecondary))
             }
