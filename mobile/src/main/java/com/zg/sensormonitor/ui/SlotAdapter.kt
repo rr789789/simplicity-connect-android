@@ -9,7 +9,10 @@ import com.zg.sensormonitor.domain.SlotState
 import com.zg.sensormonitor.protocol.DeviceProtocol
 import java.util.concurrent.TimeUnit
 
-class SlotAdapter(private val onClick: (SlotState) -> Unit) : RecyclerView.Adapter<SlotAdapter.Holder>() {
+class SlotAdapter(
+    private val onClick: (SlotState) -> Unit,
+    private val onRate: (SlotState, Boolean) -> Unit
+) : RecyclerView.Adapter<SlotAdapter.Holder>() {
     private var items = List(DeviceProtocol.SLOT_COUNT) { SlotState(it) }
     var maintenance = false
     fun submit(value: List<SlotState>) { items = value; notifyDataSetChanged() }
@@ -19,7 +22,7 @@ class SlotAdapter(private val onClick: (SlotState) -> Unit) : RecyclerView.Adapt
 
     inner class Holder(private val binding: RowSlotBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(slot: SlotState) = with(binding) {
-            slotNumber.text = "槽 ${slot.slot + 1}${if (slot.fast) " · 快" else " · 慢"}"
+            slotNumber.text = "槽 ${slot.slot + 1}"
             val status = when { slot.binding == null -> "未绑定"; slot.stale -> "超时"; slot.reading != null -> "正常"; else -> "等待" }
             state.text = status
             state.setTextColor(root.context.themeColor(when (status) { "正常" -> R.attr.appPositive; "超时" -> R.attr.appWarning; else -> R.attr.appTextSecondary }))
@@ -28,6 +31,10 @@ class SlotAdapter(private val onClick: (SlotState) -> Unit) : RecyclerView.Adapt
             val voltage = slot.reading?.let { DeviceProtocol.voltage(it, slot.info) }?.let { "%.1fV".format(it) } ?: "--"
             diagnostics.text = "电压 $voltage  RSSI ${slot.info?.rssi?.let { "$it dBm" } ?: "--"}  PA5 ${slot.reading?.pa5?.let { if (it) "高" else "低" } ?: "--"}"
             updated.text = slot.reading?.let { "${TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - it.receivedAt).coerceAtLeast(0)}秒前" } ?: "无数据"
+            slowRate.setTextColor(root.context.themeColor(if (!slot.fast) R.attr.appPositive else R.attr.appTextSecondary))
+            fastRate.setTextColor(root.context.themeColor(if (slot.fast) R.attr.appPositive else R.attr.appTextSecondary))
+            slowRate.setOnClickListener { if (slot.binding != null) onRate(slot, false) }
+            fastRate.setOnClickListener { if (slot.binding != null) onRate(slot, true) }
             root.setOnClickListener { if (maintenance) onClick(slot) }
         }
     }

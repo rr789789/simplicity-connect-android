@@ -12,11 +12,14 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.zg.sensormonitor.R
 import com.zg.sensormonitor.SensorMonitorApplication
 import com.zg.sensormonitor.ble.BleCentralManager
@@ -42,7 +45,7 @@ class MainActivity : ThemedActivity(), BleCentralManager.Listener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.scanButton.setOnClickListener { if (scanning) app.ble.stopScan() else ensurePermissions() }
-        binding.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        binding.settingsButton.setOnClickListener { showScanSettings() }
         binding.siteMode.setOnClickListener { toggleSiteMode() }
         binding.search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -189,6 +192,49 @@ class MainActivity : ThemedActivity(), BleCentralManager.Listener {
                     is PasswordResult.Invalid -> Snackbar.make(binding.root, "维护密码错误", Snackbar.LENGTH_LONG).show()
                     is PasswordResult.Locked -> Snackbar.make(binding.root, "已锁定 ${result.seconds} 秒", Snackbar.LENGTH_LONG).show()
                 }
+            }.show()
+    }
+
+    private fun showScanSettings() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 8, 48, 0)
+        }
+        val thresholdLabel = TextView(this).apply {
+            setTextColor(themeColor(R.attr.appTextSecondary))
+            textSize = 13f
+        }
+        val threshold = SeekBar(this).apply {
+            max = 12
+            progress = ((app.preferences.rssiThreshold + 100) / 5).coerceIn(0, 12)
+        }
+        fun updateThresholdLabel() {
+            val value = -100 + threshold.progress * 5
+            thresholdLabel.text = "信号强度 ≥ $value dBm${if (value <= -100) "（全部）" else ""}"
+        }
+        updateThresholdLabel()
+        threshold.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = updateThresholdLabel()
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+        val mineMode = SwitchMaterial(this).apply {
+            text = "井下高对比模式"
+            isChecked = app.preferences.mineMode
+            setTextColor(themeColor(R.attr.appTextPrimary))
+        }
+        content.addView(thresholdLabel)
+        content.addView(threshold)
+        content.addView(mineMode)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("扫描设置")
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("完成") { _, _ ->
+                app.preferences.rssiThreshold = -100 + threshold.progress * 5
+                val changed = app.preferences.mineMode != mineMode.isChecked
+                app.preferences.mineMode = mineMode.isChecked
+                if (changed) recreate() else refresh()
             }.show()
     }
 }

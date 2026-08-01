@@ -40,6 +40,7 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
     private val operationMutex = Mutex()
     private var pending: CompletableDeferred<ByteArray>? = null
     private var pendingUuid: UUID? = null
+    private var mtuWaiter: CompletableDeferred<Int>? = null
     private var gatt: BluetoothGatt? = null
     private var active: DiscoveredDevice? = null
     private var intentionalDisconnect = false
@@ -149,6 +150,8 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
         pending?.cancel()
         pending = null
         pendingUuid = null
+        mtuWaiter?.cancel()
+        mtuWaiter = null
         intentionalDisconnect = true
         gatt?.let { current ->
             if (!closeOnly) setPhase(LinkPhase.DISCONNECTING)
@@ -188,6 +191,30 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
 
     suspend fun setSensorRate(fast: Boolean) = write(DeviceProtocol.SN_CONFIG_SERVICE, DeviceProtocol.SN_RATE, byteArrayOf((if (fast) 1 else 0).toByte()))
     suspend fun setPowerMode(lowPower: Boolean) = write(DeviceProtocol.SN_CONFIG_SERVICE, DeviceProtocol.SN_POWER_MODE, byteArrayOf((if (lowPower) 1 else 0).toByte()))
+
+    suspend fun requestMtu(mtu: Int): Int {
+        val current = gatt ?: throw BleException("设备未连接")
+        val waiter = CompletableDeferred<Int>()
+        mtuWaiter?.cancel()
+        mtuWaiter = waiter
+        if (!current.requestMtu(mtu.coerceIn(23, 517))) {
+            mtuWaiter = null
+            throw BleException("MTU请求未启动")
+        }
+        return try { withTimeout(OPERATION_TIMEOUT_MS) { waiter.await() } }
+        finally { if (mtuWaiter === waiter) mtuWaiter = null }
+    }
+
+    fun refreshSubscriptions() {
+        val kind = active?.kind ?: return
+        if (gatt == null) return
+        scope.launch {
+            runCatching { initialize(kind) }.onFailure {
+                setPhase(LinkPhase.FAULT, it.message ?: "刷新数据失败")
+                audit.record("刷新数据", "失败", active?.address, it.message)
+            }
+        }
+    }
 
     fun summary(): String = "phase=$currentPhase\ndevice=${active?.address.orEmpty()}\nname=${active?.name.orEmpty()}\nlastDataAt=$lastDataAt"
 
@@ -369,7 +396,12 @@ class BleCentralManager(context: Context, private val audit: AuditStore) {
 
         override fun onMtuChanged(current: BluetoothGatt, mtu: Int, status: Int) {
             if (current !== gatt) return
-            if (status == BluetoothGatt.GATT_SUCCESS) negotiatedMtu = mtu
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                negotiatedMtu = mtu
+                mtuWaiter?.complete(mtu)
+            } else {
+                mtuWaiter?.completeExceptionally(BleException("MTU协商失败($status)"))
+            }
             handler.postDelayed({ beginServiceDiscovery(current) }, 700)
         }
     }

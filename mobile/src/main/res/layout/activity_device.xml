@@ -12,68 +12,9 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="?attr/appSurface"
-        android:subtitleTextColor="?attr/appTextSecondary"
         android:titleTextColor="?attr/appTextPrimary"
-        app:menu="@menu/device_menu"
         app:navigationIcon="@drawable/ic_back"
         app:navigationIconTint="?attr/appTextPrimary" />
-
-    <LinearLayout
-        android:id="@+id/statusBar"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:background="?attr/appSurface"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
-
-        <TextView
-            android:id="@+id/statusIcon"
-            android:layout_width="28dp"
-            android:layout_height="wrap_content"
-            android:text="●"
-            android:textColor="?attr/appWarning"
-            android:textSize="17sp" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/statusTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="连接中"
-                android:textColor="?attr/appTextPrimary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/statusDetail"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="?attr/appTextSecondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/rssi"
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:background="@drawable/bg_mode_badge"
-            android:gravity="center"
-            android:minWidth="76dp"
-            android:paddingHorizontal="8dp"
-            android:text="-- dBm"
-            android:textColor="?attr/appPositive"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -88,124 +29,145 @@
             android:padding="12dp">
 
             <LinearLayout
-                android:id="@+id/summary"
+                android:id="@+id/statusBar"
                 android:layout_width="match_parent"
-                android:layout_height="88dp"
+                android:layout_height="wrap_content"
                 android:background="@drawable/bg_panel"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="8dp">
+                android:orientation="vertical"
+                android:padding="14dp">
 
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/deviceName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/appTextPrimary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/statusDetail"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textColor="?attr/appTextSecondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
 
                     <TextView
-                        android:id="@+id/summaryLabel1"
+                        android:id="@+id/siteMode"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="绑定"
-                        android:textColor="?attr/appTextSecondary"
-                        android:textSize="11sp" />
+                        android:layout_height="30dp"
+                        android:background="@drawable/bg_mode_badge"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:minWidth="54dp"
+                        android:paddingHorizontal="8dp"
+                        android:text="客户"
+                        android:textColor="?attr/appPositive"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/primaryValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
+                        android:id="@+id/statusTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_mode_badge"
                         android:gravity="center"
-                        android:maxLines="1"
-                        android:text="0"
-                        android:textColor="?attr/appTextPrimary"
-                        android:textSize="18sp"
+                        android:minWidth="66dp"
+                        android:paddingHorizontal="8dp"
+                        android:text="连接中"
+                        android:textColor="?attr/appWarning"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/rssi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/statusIcon"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/summaryLabel2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="在线"
-                        android:textColor="?attr/appTextSecondary"
-                        android:textSize="11sp" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="10dp"
+                    android:background="@drawable/bg_divider" />
 
-                    <TextView
-                        android:id="@+id/secondaryValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="5dp"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        android:text="0"
-                        android:textColor="?attr/appTextPrimary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                <LinearLayout
+                    android:id="@+id/summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="68dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginEnd="3dp" android:layout_weight="1" android:background="@drawable/bg_panel_raised" android:gravity="center" android:orientation="vertical">
+                        <TextView android:id="@+id/primaryValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="1" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/summaryLabel1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="绑定" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginHorizontal="3dp" android:layout_weight="1" android:background="@drawable/bg_panel_raised" android:gravity="center" android:orientation="vertical">
+                        <TextView android:id="@+id/secondaryValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="1" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/summaryLabel2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="在线" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginHorizontal="3dp" android:layout_weight="1" android:background="@drawable/bg_panel_raised" android:gravity="center" android:orientation="vertical">
+                        <TextView android:id="@+id/tertiaryValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="1" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/summaryLabel3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="异常" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="3dp" android:layout_weight="1" android:background="@drawable/bg_panel_raised" android:gravity="center" android:orientation="vertical">
+                        <TextView android:id="@+id/quaternaryValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="1" android:text="0" android:textColor="?attr/appTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/summaryLabel4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="低电" android:textColor="?attr/appTextSecondary" android:textSize="11sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:id="@+id/sensorLive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-                    <TextView
-                        android:id="@+id/summaryLabel3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="异常"
-                        android:textColor="?attr/appTextSecondary"
-                        android:textSize="11sp" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="bottom" android:orientation="horizontal">
+                        <TextView android:id="@+id/liveValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="等待数据" android:textColor="?attr/appTextPrimary" android:textSize="22sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/liveType" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+                    </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/tertiaryValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        android:text="0"
-                        android:textColor="?attr/appTextPrimary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                        <TextView android:id="@+id/uptimeValue" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="运行秒 --" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+                        <TextView android:id="@+id/livePa5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PA5 --" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+                        <TextView android:id="@+id/liveVoltage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="电压 --" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView android:id="@+id/rawValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Raw --" android:textColor="?attr/appTextSecondary" android:textSize="11sp" android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:id="@+id/receiverActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/summaryLabel4"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="低电"
-                        android:textColor="?attr/appTextSecondary"
-                        android:textSize="11sp" />
-
-                    <TextView
-                        android:id="@+id/quaternaryValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        android:text="0"
-                        android:textColor="?attr/appTextPrimary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/readConfig" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:text="读取配置" app:cornerRadius="8dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/refreshData" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="42dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="刷新数据" app:cornerRadius="8dp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -220,151 +182,89 @@
                 android:id="@+id/sensorPanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/bg_panel"
                 android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="传感器状态"
-                    android:textColor="?attr/appTextPrimary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/sensorInfo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:background="@drawable/bg_panel_raised"
-                    android:lineSpacingExtra="4dp"
-                    android:padding="12dp"
-                    android:text="等待设备信息"
-                    android:textColor="?attr/appTextSecondary" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/slowRate"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_weight="1"
-                        android:text="慢速 1s"
-                        app:cornerRadius="6dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/fastRate"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="快速 100ms"
-                        app:cornerRadius="6dp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/maintenancePanel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_panel"
-                android:orientation="vertical"
-                android:padding="16dp"
+                android:padding="14dp"
                 android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="维护操作"
-                    android:textColor="?attr/appWarning"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/readConfig"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_weight="1"
-                        android:text="读取/验收"
-                        app:cornerRadius="6dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/editBindings"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="绑定管理"
-                        app:cornerRadius="6dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="传感器信息" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/readSensorInfo" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="72dp" android:layout_height="40dp" android:text="读取" app:cornerRadius="8dp" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/powerMode"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_weight="1"
-                        android:text="切换功耗"
-                        app:cornerRadius="6dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/markZero"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="当前位置置零"
-                        app:cornerRadius="6dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="工作时间" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoWork" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="传感器电压" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoVoltage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="开机时间" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoBoot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="状态" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PA5状态" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoPa5" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RSSI" android:textColor="?attr/appTextSecondary" android:textSize="12sp" /><TextView android:id="@+id/infoRssi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="--" android:textColor="?attr/appTextPrimary" android:textSize="14sp" /></LinearLayout>
                 </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/ota"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="8dp"
-                    android:text="选择 GBL 并升级"
-                    app:cornerRadius="6dp" />
+                <TextView android:id="@+id/sensorInfo" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/danger"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="8dp"
-                    android:text="休眠 / 修改 MAC / 清除"
-                    android:textColor="?attr/appDanger"
-                    app:cornerRadius="6dp"
-                    app:strokeColor="?attr/appDanger" />
+            <LinearLayout android:id="@+id/rateCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="上报速率" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/slowRate" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="慢速 1s" app:cornerRadius="8dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/fastRate" android:layout_width="0dp" android:layout_height="44dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="快速 100ms" app:cornerRadius="8dp" />
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/sleepButton" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="8dp" android:text="进入休眠" android:textColor="?attr/appDanger" android:visibility="gone" app:cornerRadius="8dp" app:strokeColor="?attr/appDanger" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/workModeCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="工作模式" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/normalPower" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="普通模式" app:cornerRadius="8dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/lowPower" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="44dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="低功耗" app:cornerRadius="8dp" />
+                </LinearLayout>
+                <TextView android:id="@+id/powerHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="维护模式下可切换工作模式" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+                <TextView android:id="@+id/powerMode" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/zeroCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="零点标记" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/markZero" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="10dp" android:text="当前位置记为0" app:cornerRadius="8dp" />
+                <TextView android:id="@+id/zeroText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="零点: X 0.0° Y 0.0°" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/macCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="修改 MAC" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <EditText android:id="@+id/macInput" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="10dp" android:background="@drawable/bg_panel_raised" android:hint="AA:BB:CC:DD:EE:FF" android:paddingHorizontal="12dp" android:singleLine="true" android:textColor="?attr/appTextPrimary" android:textColorHint="?attr/appTextSecondary" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/writeMac" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="8dp" android:text="写入并重启" android:textColor="?attr/appDanger" app:cornerRadius="8dp" app:strokeColor="?attr/appDanger" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="写入后传感器立即复位，连接断开。" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/maintenancePanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="绑定管理" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/editBindings" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:text="扫码下一槽" app:cornerRadius="8dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/danger" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="42dp" android:layout_marginStart="8dp" android:layout_weight="1" android:text="修改 ID" app:cornerRadius="8dp" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/bindingRows" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/submitBindings" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="8dp" android:text="下发绑定" app:cornerRadius="8dp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/clearAllButton" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="8dp" android:text="清除全部绑定" android:textColor="?attr/appDanger" app:cornerRadius="8dp" app:strokeColor="?attr/appDanger" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/otaCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_panel" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="固件升级" android:textColor="?attr/appTextPrimary" android:textSize="15sp" android:textStyle="bold" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/ota" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="10dp" android:text="选择本地 GBL / HTTPS 地址" app:cornerRadius="8dp" />
+                <ProgressBar android:id="@+id/otaProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:layout_marginTop="10dp" android:max="100" android:visibility="gone" />
+                <TextView android:id="@+id/otaStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="使用 Silicon Labs 官方 OTA 流程" android:textColor="?attr/appTextSecondary" android:textSize="12sp" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/maintainer"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="8dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
                 android:text="进入维护模式" />
         </LinearLayout>
     </ScrollView>

@@ -34,27 +34,32 @@ class OtaEngine(
             val before = runCatching { readVersion() }.getOrNull()
             onState(OtaState.Preparing("正在进入DFU"))
             ble.setDfuMode(true)
+            runCatching { ble.requestMtu(247) }
+            delay(OTA_CONTROL_START_DELAY_MS)
             ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_CONTROL, byteArrayOf(0))
             delay(1200)
             ble.disconnect()
 
             val otaDevice = findDevice(original, DeviceKind.OTA)
             connectAndWait(otaDevice)
-            ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_CONTROL, byteArrayOf(0xEE.toByte()))
-            delay(200)
+            runCatching { ble.requestMtu(247) }
+            delay(OTA_CONTROL_START_DELAY_MS)
+            // Silicon Labs OTA sequence starts the upload with 0x00 in both normal and DFU mode.
+            ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_CONTROL, byteArrayOf(0))
+            delay(OTA_CONTROL_START_DELAY_MS)
 
             var sent = 0
             while (sent < image.size) {
                 val end = (sent + ble.writePayloadSize).coerceAtMost(image.size)
-                ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_DATA, image.copyOfRange(sent, end), withResponse = false)
+                writeOtaPacket(image.copyOfRange(sent, end))
                 sent = end
-                delay(8)
+                delay(OTA_PACKET_DELAY_MS)
                 onState(OtaState.Transferring(5 + sent * 90 / image.size, sent.toLong(), image.size.toLong()))
             }
 
             onState(OtaState.Verifying("Bootloader正在校验并重启"))
             ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_CONTROL, byteArrayOf(3))
-            delay(2000)
+            delay(OTA_CONTROL_END_DELAY_MS)
             ble.disconnect()
             val normal = findDevice(original, original.kind)
             connectAndWait(normal)
@@ -121,6 +126,17 @@ class OtaEngine(
         ble.read(DeviceProtocol.DEVICE_INFO_SERVICE, DeviceProtocol.FIRMWARE_REVISION)
             .toString(Charsets.UTF_8).trim('\u0000', ' ', '\r', '\n')
 
+    private suspend fun writeOtaPacket(packet: ByteArray) {
+        var lastError: Throwable? = null
+        repeat(50) {
+            runCatching { ble.write(DeviceProtocol.OTA_SERVICE, DeviceProtocol.OTA_DATA, packet, withResponse = false) }
+                .onSuccess { return }
+                .onFailure { lastError = it }
+            delay(OTA_PACKET_DELAY_MS)
+        }
+        throw lastError ?: IllegalStateException("OTA数据写入失败")
+    }
+
     private fun load(source: FirmwareSource): ByteArray = when (source) {
         is FirmwareSource.Local -> context.contentResolver.openInputStream(source.uri)?.use { input ->
             readLimited(input.readBytes())
@@ -156,5 +172,8 @@ class OtaEngine(
 
     companion object {
         private const val MAX_FIRMWARE_SIZE = 8 * 1024 * 1024
+        private const val OTA_CONTROL_START_DELAY_MS = 200L
+        private const val OTA_CONTROL_END_DELAY_MS = 500L
+        private const val OTA_PACKET_DELAY_MS = 1L
     }
 }
